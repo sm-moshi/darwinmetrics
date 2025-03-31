@@ -1,1 +1,31 @@
-/nimcache\n*.nimble.lock\n
+# Nim specific
+nimcache/
+nimblecache/
+htmldocs/
+*.exe
+**/nimble.lock
+
+# Build artifacts
+darwinmetrics
+dist/
+
+# Editor specific
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# macOS specific
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Test artifacts
+testresults/
+coverage/
+*.out
+
+# Project specific
+.nim_runtime/

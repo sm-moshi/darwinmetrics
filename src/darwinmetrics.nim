@@ -2,6 +2,7 @@
 # exports the main API in this file. Note that you cannot rename this file
 # but you can remove it if you wish.
 
-proc add*(x, y: int): int =
-  ## Adds two numbers together.
-  return x + y
+# Entry point for the darwinmetrics library
+import system/[cpu, memory, disk, network, process, power]
+
+export cpu, memory, disk, network, process, power

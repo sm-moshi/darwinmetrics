@@ -1,0 +1,64 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Cache choosenim
+        uses: actions/cache@v4
+        with:
+          path: ~/.choosenim
+          key: ${{ runner.os }}-choosenim-stable
+
+      - name: Cache nimble
+        uses: actions/cache@v4
+        with:
+          path: ~/.nimble
+          key: ${{ runner.os }}-nimble-${{ hashFiles('*.nimble') }}
+          restore-keys: |
+            ${{ runner.os }}-nimble-
+
+      - name: Install Nim
+        uses: jiro4989/setup-nim-action@v2
+        with:
+          nim-version: stable
+
+      - name: Build project
+        run: |
+          nimble check
+          nimble build -y --gc:orc -d:release
+
+      - name: Test project
+        run: |
+          nimble test -y --gc:orc -d:release --debugger:native
+
+      - name: Archive Binary
+        run: |
+          mkdir -p dist
+          cp ./darwinmetrics dist/
+          cd dist && tar czf darwinmetrics-macos.tar.gz darwinmetrics
+          shasum -a 256 darwinmetrics-macos.tar.gz > darwinmetrics-macos.tar.gz.sha256
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            dist/darwinmetrics-macos.tar.gz
+            dist/darwinmetrics-macos.tar.gz.sha256
+          draft: false
+          prerelease: false
+          generate_release_notes: true

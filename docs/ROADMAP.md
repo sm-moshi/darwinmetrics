@@ -1,0 +1,97 @@
+# 🛣 ROADMAP — darwinmetrics (Nim)
+
+This document defines the long-term development goals and phased milestones for the `darwinmetrics` library. It reflects the functional parity target with [`darwin-metrics`](https://github.com/sm-moshi/darwin-metrics) (Rust) and [`dmetrics-go`](https://github.com/sm-moshi/dmetrics-go), while embracing idiomatic Nim practices.
+
+---
+
+## 📍 Phase 1: Bootstrap & Core API
+
+🎯 Goal: Establish working structure, entry point, and baseline modules
+
+- [x] Initialise `nimble` project and structure
+- [x] Create public API scaffold (`src/darwinmetrics.nim`)
+- [ ] Implement architecture detection
+- [ ] Stub core metric modules (CPU, Memory, Power, Disk, Network, Process)
+- [x] Setup LSP, formatter (`nph`, `nimpretty`)
+- [~] Setup GitHub Actions CI
+
+---
+
+## 📍 Phase 2: CPU, Memory, and Power Support
+
+🎯 Goal: Implement reliable synchronous metrics for system monitoring
+
+- [ ] CPU:
+  - [ ] Load average
+  - [ ] Per-core usage
+  - [ ] Frequency
+- [ ] Memory:
+  - [ ] RAM + Swap
+  - [ ] Pressure (if available)
+- [ ] Power:
+  - [ ] Battery state, charge, time remaining
+
+---
+
+## 📍 Phase 3: Async Sampling & Struct Design
+
+🎯 Goal: Add async interfaces and shared metric model structures
+
+- [ ] Define `MetricResult` / `MetricSnapshot` types
+- [ ] Build async polling helpers
+- [ ] Add cancellation support
+- [ ] Enable periodic sampling for all core metrics
+
+---
+
+## 📍 Phase 4: GPU, Temperature, Fan Sensors
+
+🎯 Goal: Expand visibility into hardware-level conditions via SMC & IOKit
+
+- [ ] GPU model + usage
+- [ ] Fan speeds
+- [ ] Temperature zones
+- [ ] SMC and CoreFoundation wrappers
+
+---
+
+## 📍 Phase 5: Process & Network Visibility
+
+🎯 Goal: Enable process-level and network-level introspection
+
+- [ ] Enumerate processes
+- [ ] Per-process resource tracking
+- [ ] Build parent/child tracking
+- [ ] Network interfaces and traffic stats
+
+---
+
+## 📍 Phase 6: Metrics Exporters & CLI Tooling
+
+🎯 Goal: Enable use of library as backend for monitoring tools
+
+- [ ] JSON/CSV output formats
+- [ ] Prometheus exporter
+- [ ] InfluxDB support
+- [ ] CLI: `nmetrics` sampling daemon
+
+---
+
+## 📍 Phase 7: Polish & Publication
+
+🎯 Goal: Clean up, document, and publish usable version
+
+- [ ] Write `README.md`, `CHANGELOG.md`, and module-level docs
+- [ ] 100% test coverage on CI for macOS
+- [ ] Release `v0.1.0` via GitHub
+- [ ] Tag as parity-complete with Rust/Go versions
+
+---
+
+## 🚨 Post-Release (v0.2+)
+
+- [ ] Cross-platform abstraction for Linux
+- [ ] Daemon-mode metrics streaming
+- [ ] gRPC + WebSocket support
+- [ ] Advanced async sampling manager
+- [ ] Dashboard UI (via Tauri or Dioxus)
