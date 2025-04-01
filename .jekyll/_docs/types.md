@@ -91,10 +91,59 @@ type MemoryInfo* = object
 
 ```nim
 type PowerInfo* = object
-  isCharging*: bool     ## Whether the device is charging
-  batteryLevel*: float  ## Battery level percentage
-  timeRemaining*: int   ## Estimated minutes of battery life remaining
-  powerSource*: string  ## Current power source (battery/AC)
+  isPresent*: bool         ## Whether battery is present
+  status*: PowerStatus     ## Current power status
+  source*: PowerSource     ## Current power source
+  percentRemaining*: float ## Battery percentage (0-100)
+  timeRemaining*: Option[int] ## Estimated minutes remaining on battery
+  timeToFull*: Option[int] ## Estimated minutes until full charge
+  health*: Option[BatteryHealth] ## Battery health if available
+  isLowPower*: bool        ## Whether low power mode is active
+  thermalPressure*: ThermalPressure ## Current thermal pressure level
+```
+
+### PowerStatus
+
+```nim
+type PowerStatus* = enum
+  Charging        ## Battery is currently charging
+  Discharging     ## Battery is discharging (on battery power)
+  Full            ## Battery is fully charged
+  ACPowered       ## System is AC powered with no battery
+  Unknown         ## Status cannot be determined
+```
+
+### PowerSource
+
+```nim
+type PowerSource* = enum
+  Battery         ## Running on battery power
+  AC              ## Running on AC power (mains electricity)
+  UPS             ## Running on uninterruptible power supply
+  Unknown         ## Power source cannot be determined
+```
+
+### BatteryHealth
+
+```nim
+type BatteryHealth* = object
+  cycleCount*: int         ## Battery charge cycles completed
+  condition*: string       ## Condition (Normal, Poor, etc.)
+  temperature*: float      ## Battery temperature in °C if available
+  designCapacity*: int     ## Design capacity in mAh
+  currentCapacity*: int    ## Current maximum capacity in mAh
+  maxCapacity*: int        ## Maximum capacity in mAh
+```
+
+### ThermalPressure
+
+```nim
+type ThermalPressure* = enum
+  Normal          ## System thermal state is normal
+  Moderate        ## System under moderate thermal pressure
+  Heavy           ## System under heavy thermal pressure
+  Critical        ## System experiencing critical thermal issues
+  Unknown         ## Thermal state cannot be determined
 ```
 
 ## 🌡️ Temperature Types
