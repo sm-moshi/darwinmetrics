@@ -6,7 +6,9 @@
 import std/[strformat, strutils, options, times, deques, asyncdispatch, locks]
 import ../internal/platform_darwin
 import ../internal/darwin_errors
-import ../internal/mach_stats
+from ../internal/mach_stats import
+  HostCpuLoadInfo, HostLoadInfo, KERN_SUCCESS, LOAD_SCALE, PROCESSOR_CPU_LOAD_INFO,
+  mach_host_self, host_processor_info, vm_deallocate, getHostLoadInfo, getHostCpuLoadInfo
 
 type CpuUsage* = object        ## CPU usage information
   user*: float                ## Percentage of time spent in user mode (0-100)
@@ -376,3 +378,51 @@ proc startLoadMonitoring*(history: LoadHistory, interval: float = 60.0): Future[
       # Log error but continue monitoring
       echo "Error getting load average: ", e.msg
     await sleepAsync(int(interval * 1000))
+
+proc getPerCoreCpuLoadInfo*(): seq[HostCpuLoadInfo] {.raises: [DarwinError].} =
+  ## Retrieves per-core CPU load information using Mach's host_processor_info.
+  ## Returns a sequence of HostCpuLoadInfo objects, one per CPU core.
+  var cpuInfoPtr: pointer = nil
+  var cpuCount: uint32 = 0
+  var infoCount: uint32 = 0
+
+  # Use the properly declared host_processor_info from mach_stats
+  let kr = host_processor_info(
+    mach_host_self(),
+    PROCESSOR_CPU_LOAD_INFO.cint,
+    addr cpuCount,
+    addr cpuInfoPtr,
+    addr infoCount
+  )
+
+  if kr != KERN_SUCCESS:
+    raise newException(DarwinError, "Failed to retrieve per-core CPU load information")
+
+  var results: seq[HostCpuLoadInfo] = @[]
+
+  # Cast the void pointer to an array of uint32 values (the type returned by Mach)
+  let infoArr = cast[ptr UncheckedArray[uint32]](cpuInfoPtr)
+
+  # Each core returns 4 integers: user, system, idle, and nice tick counts.
+  for i in 0..<int(cpuCount):
+    let offset = i * 4
+    # No need for .float conversion, we access array directly
+    let userVal = infoArr[offset]
+    let systemVal = infoArr[offset + 1]
+    let idleVal = infoArr[offset + 2]
+    let niceVal = infoArr[offset + 3]
+
+    let coreInfo = HostCpuLoadInfo(
+      userTicks: [userVal, 0'u32, 0'u32, 0'u32],
+      systemTicks: [systemVal, 0'u32, 0'u32, 0'u32],
+      idleTicks: [idleVal, 0'u32, 0'u32, 0'u32],
+      niceTicks: [niceVal, 0'u32, 0'u32, 0'u32]
+    )
+    results.add(coreInfo)
+
+  # Free the memory allocated by host_processor_info using vm_deallocate
+  # On 64-bit systems, cast directly to uint64
+  let totalSize: uint64 = uint64(infoCount) * uint64(sizeof(uint32))
+  discard vm_deallocate(mach_host_self(), cast[uint64](cpuInfoPtr), totalSize)
+
+  return results

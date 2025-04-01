@@ -27,12 +27,29 @@ type
 const
   KERN_SUCCESS* = 0.cint
   LOAD_SCALE* = 1000 ## Scale factor for load averages
+  PROCESSOR_CPU_LOAD_INFO* = 2 ## Flavor for per-processor CPU load info
 
 let
   hostCpuLoadInfoCount* = (sizeof(HostCpuLoadInfo) div sizeof(int32)).uint32
   hostLoadInfoCount* = (sizeof(HostLoadInfo) div sizeof(int32)).uint32
 
-proc mach_host_self(): MachPort {.importc, header: "<mach/mach_host.h>".}
+# Make sure the mach_host_self function is properly declared
+proc mach_host_self*(): MachPort {.importc, header: "<mach/mach_host.h>".}
+
+# Add host_processor_info and vm_deallocate definitions
+proc host_processor_info*(
+  host: MachPort,
+  flavor: cint,
+  processor_count: ptr uint32,
+  processor_info: ptr pointer,
+  processor_info_count: ptr uint32
+): cint {.importc, header: "<mach/processor_info.h>".}
+
+proc vm_deallocate*(
+  target_task: MachPort,
+  address: uint64,  # Use uint64 for vm_address_t on 64-bit systems
+  size: uint64
+): cint {.importc, header: "<mach/vm_map.h>".}
 
 proc host_statistics(
   host_priv: MachPort,

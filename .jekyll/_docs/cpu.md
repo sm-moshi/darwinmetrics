@@ -52,10 +52,10 @@ The `CpuFrequency` object provides detailed frequency information:
 
 ```nim
 type CpuFrequency* = object
-  nominal*: Option[float]  # Base frequency in MHz
-  current*: Option[float]  # Current frequency in MHz
-  min*: Option[float]     # Minimum frequency in MHz
-  max*: Option[float]     # Maximum frequency in MHz
+  nominal*: float           # Base frequency in MHz
+  current*: Option[float]   # Current frequency in MHz (if available)
+  min*: Option[float]       # Minimum frequency in MHz (if available)
+  max*: Option[float]       # Maximum frequency in MHz (if available)
 ```
 
 ### 🖥️ Platform-Specific Behaviour
@@ -92,6 +92,30 @@ The `LoadHistory` type maintains a chronological record of load averages:
 let history = newLoadHistory(maxSamples = 60)  # Keep last 60 samples
 history.add(loadAvg)
 ```
+
+## 🧮 Per-Core CPU Metrics
+
+The `getPerCoreCpuLoadInfo()` function provides detailed CPU usage statistics for each individual core:
+
+```nim
+let coreStats = getPerCoreCpuLoadInfo()
+echo "Number of cores reporting: ", coreStats.len
+
+# Access individual core data
+for i, core in coreStats:
+  echo "Core ", i, " user: ", core.userTicks[0], " system: ", core.systemTicks[0]
+```
+
+This function properly manages memory allocated by the Mach kernel, ensuring no leaks occur when retrieving per-core metrics.
+
+### 🔒 Thread Safety
+
+The CPU module provides thread-safe operations:
+
+- `LoadHistory` uses locks for safe concurrent access
+- `add()` can be called from multiple threads
+- All Mach kernel bindings are properly managed for memory safety
+- Asynchronous operations like `getLoadAverageAsync()` are thread-safe
 
 ## ⚠️ Error Handling
 

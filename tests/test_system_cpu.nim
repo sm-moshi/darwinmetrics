@@ -395,5 +395,75 @@ when defined(darwin):
           history.samples.len <= history.maxSamples
           history.samples.len > 0
 
+  suite "Per-Core CPU Load Tests":
+    test "getPerCoreCpuLoadInfo returns data for each core":
+      let coreInfo = getPerCoreCpuLoadInfo()
+      let cpuInfo = getCpuInfo()
+
+      check:
+        coreInfo.len == cpuInfo.logicalCores
+        coreInfo.len > 0
+
+    test "Per-core load information contains valid tick values":
+      let coreInfo = getPerCoreCpuLoadInfo()
+
+      for i, core in coreInfo:
+        check:
+          core.userTicks[0] >= 0'u32
+          core.systemTicks[0] >= 0'u32
+          core.idleTicks[0] >= 0'u32
+          core.niceTicks[0] >= 0'u32
+          # At least one state should have non-zero ticks
+          core.userTicks[0] + core.systemTicks[0] + core.idleTicks[0] + core.niceTicks[0] > 0'u32
+
+    test "Multiple calls to getPerCoreCpuLoadInfo show increasing tick counts":
+      let firstSample = getPerCoreCpuLoadInfo()
+
+      # Do some work to ensure CPU activity
+      var x = 0
+      for i in 0..<1_000_000:
+        x += i mod 100
+
+      # Get second sample after some CPU activity
+      let secondSample = getPerCoreCpuLoadInfo()
+
+      check:
+        firstSample.len == secondSample.len
+
+      var ticksIncreased = false
+      for i in 0..<firstSample.len:
+        let totalTicksFirst = firstSample[i].userTicks[0] +
+                              firstSample[i].systemTicks[0] +
+                              firstSample[i].idleTicks[0] +
+                              firstSample[i].niceTicks[0]
+
+        let totalTicksSecond = secondSample[i].userTicks[0] +
+                               secondSample[i].systemTicks[0] +
+                               secondSample[i].idleTicks[0] +
+                               secondSample[i].niceTicks[0]
+
+        if totalTicksSecond > totalTicksFirst:
+          ticksIncreased = true
+          break
+
+      check ticksIncreased
+
+    test "Per-core load information structure matches HostCpuLoadInfo format":
+      let coreInfo = getPerCoreCpuLoadInfo()
+
+      for core in coreInfo:
+        check:
+          core.userTicks.len == 4
+          core.systemTicks.len == 4
+          core.idleTicks.len == 4
+          core.niceTicks.len == 4
+          # Only first element contains data, others are zero
+          core.userTicks[1] == 0'u32
+          core.userTicks[2] == 0'u32
+          core.userTicks[3] == 0'u32
+          core.systemTicks[1] == 0'u32
+          core.systemTicks[2] == 0'u32
+          core.systemTicks[3] == 0'u32
+
 else:
   echo "Skipping CPU tests on non-Darwin platform"

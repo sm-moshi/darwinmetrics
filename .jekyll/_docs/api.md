@@ -6,6 +6,8 @@ permalink: /docs/api/
 
 ## 🖥️ Core Functions
 
+The DarwinMetrics API is designed to be safe, efficient, and thread-aware. All functions correctly handle memory management, particularly when dealing with Mach kernel interfaces. Thread-safe operations are implemented using locks where appropriate.
+
 ### CPU Information
 
 ```nim
@@ -20,6 +22,13 @@ proc getCpuUsage*(): CpuUsage {.raises: [DarwinError].}
 ```
 
 Returns current CPU usage percentages across different states (user, system, idle, nice).
+
+```nim
+proc getPerCoreCpuLoadInfo*(): seq[HostCpuLoadInfo] {.raises: [DarwinError].}
+```
+
+Returns per-core CPU load information, with user/system/idle/nice tick counts for each CPU core.
+Correctly manages memory allocated by Mach kernel functions.
 
 ### Load Average Monitoring
 
@@ -139,7 +148,7 @@ type LoadAverage* = object
 type LoadHistory* = ref object
   samples*: Deque[LoadAverage] ## Load average samples
   maxSamples*: int            ## Maximum number of samples to keep
-  # Thread synchronization handled internally
+  # Thread synchronization handled internally with locks
 ```
 
 ## 🛠️ Constants

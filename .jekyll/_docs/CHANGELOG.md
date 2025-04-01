@@ -9,7 +9,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.5.0] - 2024-04-01 🚀
+## [0.0.5] - 2024-04-01 🚀
 
 ### ✨ Added
 
@@ -17,12 +17,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Support for Apple Silicon (M1/M2) frequency reporting
   - Intel CPU frequency detection with brand string fallback
   - Flexible frequency tests for cross-architecture support
+- Per-core CPU metrics:
+  - New `getPerCoreCpuLoadInfo()` function for detailed per-core statistics
+  - Implementation of proper memory management for Mach kernel calls
+  - Thread-safe load history tracking with lock support
 
 ### 🔄 Changed
 
 - **BREAKING**: Removed DarwinError from getFrequencyInfo for graceful fallbacks
 - Made frequency detection more resilient across architectures
 - Enhanced error handling with reasonable defaults for different CPU types
+
+### 🐛 Fixed
+
+- Memory deallocation for Mach kernel statistics
+- Thread safety concerns in CPU metrics module
+- Documentation for memory management across Darwin platforms
 
 ## [0.0.4] - 2024-04-01 📊
 

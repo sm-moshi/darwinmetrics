@@ -42,6 +42,16 @@ type CpuUsage* = object
   total*: float               ## Total CPU usage percentage (0-100)
 ```
 
+### HostCpuLoadInfo
+
+```nim
+type HostCpuLoadInfo* = object
+  userTicks*: array[2, natural]    ## User CPU ticks
+  systemTicks*: array[2, natural]  ## System CPU ticks
+  idleTicks*: array[2, natural]    ## Idle CPU ticks
+  niceTicks*: array[2, natural]    ## Nice priority CPU ticks
+```
+
 ### LoadAverage
 
 ```nim
@@ -58,7 +68,7 @@ type LoadAverage* = object
 type LoadHistory* = ref object
   samples*: Deque[LoadAverage] ## Load average samples
   maxSamples*: int            ## Maximum number of samples to keep
-  # Thread synchronization handled internally
+  # Thread synchronization handled internally with locks
 ```
 
 ## 🧠 Memory Types

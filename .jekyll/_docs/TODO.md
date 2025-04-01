@@ -34,10 +34,10 @@ This document outlines the planned implementation steps for the `darwinmetrics` 
 ## 🖥️ CPU Module (`system/cpu.nim`)
 
 - [x] Get number of physical/logical cores
-- [ ] Retrieve per-core and total usage
+- [x] Retrieve per-core and total usage
 - [x] Measure load average
 - [x] Detect current and max frequency
-- [ ] Async update interface
+- [x] Async update interface
 - [x] Unit tests with mocked values
 
 ---
