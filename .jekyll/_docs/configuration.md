@@ -4,7 +4,6 @@ title: ⚙️ Configuration
 permalink: /docs/configuration/
 ---
 
-
 darwinmetrics provides various configuration options to customize its behavior for your specific needs.
 
 ## Basic Configuration

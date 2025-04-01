@@ -4,7 +4,6 @@ title: 🤝 Code of Conduct
 permalink: /docs/code_of_conduct/
 ---
 
-
 ## Our Pledge
 
 We as members, contributors, and leaders pledge to make participation in our

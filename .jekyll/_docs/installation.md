@@ -4,7 +4,6 @@ title: 📥 Installation Guide
 permalink: /docs/installation/
 ---
 
-
 ## Prerequisites
 
 * Nim 2.2.2 or higher

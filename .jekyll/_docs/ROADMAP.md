@@ -1,5 +1,5 @@
 ---
-layout: docs
+layout: doc
 title: 🛣️ Roadmap
 permalink: /docs/roadmap/
 ---
@@ -8,14 +8,15 @@ This document defines the long-term development goals and phased milestones for 
 
 ---
 
-## 📍 Phase 1: Bootstrap & Core API
+## 📍 Phase 1: Bootstrap & Core API ✅
 
 🎯 Goal: Establish working structure, entry point, and baseline modules
 
 - [x] Initialise `nimble` project and structure
 - [x] Create public API scaffold (`src/darwinmetrics.nim`)
-- [ ] Implement architecture detection
-- [ ] Stub core metric modules (CPU, Memory, Power, Disk, Network, Process)
+- [x] Implement architecture detection with version validation
+- [x] Set minimum macOS requirement to 12.0+ (Darwin 21.0+)
+- [x] Stub core metric modules (CPU, Memory, Power, Disk, Network, Process)
 - [x] Setup LSP, formatter (`nph`, `nimpretty`)
 - [x] Setup GitHub Actions CI
 
@@ -25,10 +26,11 @@ This document defines the long-term development goals and phased milestones for 
 
 🎯 Goal: Implement reliable synchronous metrics for system monitoring
 
-- [ ] CPU:
-  - [ ] Load average
-  - [ ] Per-core usage
-  - [ ] Frequency
+- [~] CPU:
+  - [x] Load average
+  - [x] Per-core usage
+  - [x] Frequency
+  - [x] Architecture-specific optimisations (arm64/x86_64)
 - [ ] Memory:
   - [ ] RAM + Swap
   - [ ] Pressure (if available)
@@ -99,6 +101,12 @@ This document defines the long-term development goals and phased milestones for 
 - [ ] gRPC + WebSocket support
 - [ ] Advanced async sampling manager
 - [ ] Dashboard UI (via Tauri or Dioxus)
+
+## 🔗 See Also
+
+- [📝 Changelog](./changelog.html)
+- [📋 TODO List](./todo.html)
+- [📚 API Reference](./api.html)
 
 ## Contributions
 

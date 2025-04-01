@@ -1,14 +1,18 @@
-name: Build
+name: CI/CD
 
 on:
   push:
     branches: [main, develop]
+    tags: ["v*"]
   pull_request:
     branches: [main, develop]
   workflow_dispatch:
-
-permissions:
-  contents: read
+    inputs:
+      create_release:
+        description: "Create release"
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   build:
@@ -16,47 +20,50 @@ jobs:
     strategy:
       matrix:
         nim-version: ["2.2.2"]
-      fail-fast: false
+        include:
+          - nim-version: "2.2.2"
+            is-release: ${{ startsWith(github.ref, 'refs/tags/v') || github.event.inputs.create_release == 'true' }}
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Cache choosenim
-        id: cache-choosenim
+      - name: Cache Nim environment
         uses: actions/cache@v4
         with:
-          path: ~/.choosenim
-          key: ${{ runner.os }}-choosenim-${{ matrix.nim-version }}
-
-      - name: Cache nimble
-        id: cache-nimble
-        uses: actions/cache@v4
-        with:
-          path: ~/.nimble
-          key: ${{ runner.os }}-nimble-${{ matrix.nim-version }}-${{ hashFiles('*.nimble') }}
+          path: |
+            ~/.choosenim
+            ~/.nimble
+          key: ${{ runner.os }}-nim-${{ matrix.nim-version }}-${{ hashFiles('*.nimble') }}
           restore-keys: |
-            ${{ runner.os }}-nimble-${{ matrix.nim-version }}-
+            ${{ runner.os }}-nim-${{ matrix.nim-version }}-
+            ${{ runner.os }}-nim-
 
       - name: Setup Nim
-        uses: jiro4989/setup-nim-action@v2
+        uses: jiro4989/setup-nim-action@v2.2.2
         with:
           nim-version: ${{ matrix.nim-version }}
 
       - name: Build
-        run: nimble build -y
+        run: |
+          nimble build -y --gc:orc --threads:on --tlsEmulation:off -d:release
 
       - name: Test
         run: nimble test -y
 
-      - name: Generate coverage
-        if: matrix.nim-version == '2.2.2'
+      - name: Prepare Release Assets
+        if: matrix.is-release
         run: |
-          nimble coverage
+          mkdir -p dist
+          cp ./darwinmetrics dist/
+          cd dist && tar czf darwinmetrics-macos.tar.gz darwinmetrics
+          shasum -a 256 darwinmetrics-macos.tar.gz > darwinmetrics-macos.tar.gz.sha256
 
-      - name: Upload coverage
-        if: matrix.nim-version == '2.2.2'
-        uses: codecov/codecov-action@v4
+      - name: Create Release
+        if: matrix.is-release
+        uses: softprops/action-gh-release@v1
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: coverage/*.xml
-          fail_ci_if_error: true
+          files: |
+            dist/darwinmetrics-macos.tar.gz
+            dist/darwinmetrics-macos.tar.gz.sha256
+          generate_release_notes: true
+          draft: true # Creates a draft release that you can review before publishing

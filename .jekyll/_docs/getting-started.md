@@ -4,7 +4,6 @@ title: 🚀 Getting Started
 permalink: /docs/getting-started/
 ---
 
-
 darwinmetrics is a Nim library for collecting system metrics on macOS. This guide will help you quickly get up and running with the basics.
 
 Before you begin, ensure you have:
