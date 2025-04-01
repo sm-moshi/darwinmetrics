@@ -22,14 +22,14 @@ This document defines the long-term development goals and phased milestones for 
 
 🎯 Goal: Implement reliable synchronous metrics for system monitoring
 
-- [~] CPU:
+- [x] CPU:
   - [x] Load average
   - [x] Per-core usage
   - [x] Frequency
   - [x] Architecture-specific optimisations (arm64/x86_64)
-- [ ] Memory:
-  - [ ] RAM + Swap
-  - [ ] Pressure (if available)
+- [x] Memory:
+  - [x] RAM + Swap
+  - [x] Pressure (if available)
 - [ ] Power:
   - [ ] Battery state, charge, time remaining
 

@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.6] - 2024-04-01
+
+### Added
+
+- Memory management improvements:
+  - Implemented public memory API with clean abstraction
+  - Added memory pressure level monitoring
+  - Added process memory information tracking
+  - Added comprehensive memory statistics
+  - Added memory unit constants (KB, MB, GB, TB)
+  - Added proper error handling and type safety
+
+### Changed
+
+- Refactored memory types into separate modules:
+  - Moved internal Mach types to `memory_types.nim`
+  - Created clean public API in `memory.nim`
+  - Improved documentation and examples
+- Enhanced error handling in memory operations
+- Improved type safety across memory management
+
 ## [0.0.5] - 2024-04-01
 
 ### Added
