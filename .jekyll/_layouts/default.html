@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ page.title }} - {{ site.title }}</title>
+  <link rel="stylesheet" href="{{ '/assets/main.css' | relative_url }}">
+  <style>
+    /* Modern docs theme styles */
+    :root {
+      --primary-color: #4A0015;
+      --sidebar-width: 200px;
+      --toc-width: 250px;
+      --header-height: 60px;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+      line-height: 1.6;
+    }
+
+    .header {
+      background-color: var(--primary-color);
+      color: white;
+      height: var(--header-height);
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+    }
+
+    .header h1 {
+      margin: 0;
+      font-size: 1.5rem;
+    }
+
+    .site-container {
+      display: flex;
+      margin-top: var(--header-height);
+      min-height: calc(100vh - var(--header-height));
+    }
+
+    .sidebar {
+      width: var(--sidebar-width);
+      background-color: #f5f7f9;
+      border-right: 1px solid #e1e4e8;
+      flex-shrink: 0;
+      position: fixed;
+      top: var(--header-height);
+      bottom: 0;
+      overflow-y: auto;
+    }
+
+    .navigation {
+      padding: 12px 12px 12px 4px;
+    }
+
+    .navigation h2 {
+      font-size: 1.2rem;
+      margin-top: 0;
+      padding-left: 4px;
+      white-space: nowrap;
+    }
+
+    .navigation ul {
+      list-style-type: none;
+      padding-left: 0;
+      width: 100%;
+    }
+
+    .navigation li {
+      margin-bottom: 4px;
+    }
+
+    .navigation a {
+      text-decoration: none;
+      color: #24292e;
+      display: block;
+      padding: 4px 4px;
+      border-radius: 4px;
+      text-align: left;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .navigation a:hover {
+      background-color: #e1e4e8;
+    }
+
+    .navigation .active a {
+      background-color: #e2eeff;
+      font-weight: 500;
+      color: var(--primary-color);
+    }
+
+    .main-content {
+      flex: 1;
+      padding: 30px;
+      margin-left: var(--sidebar-width);
+      max-width: calc(100% - var(--sidebar-width));
+    }
+
+    @media (max-width: 800px) {
+      .sidebar {
+        display: none;
+      }
+      .main-content {
+        margin-left: 0;
+        max-width: 100%;
+      }
+    }
+
+    /* Content styling */
+    .main-content h1 {
+      margin-top: 0;
+      border-bottom: 1px solid #e1e4e8;
+      padding-bottom: 0.3em;
+    }
+
+    .main-content h2 {
+      margin-top: 1.5em;
+      margin-bottom: 0.5em;
+      border-bottom: 1px solid #e1e4e8;
+      padding-bottom: 0.3em;
+    }
+
+    .main-content pre {
+      background-color: #f6f8fa;
+      border-radius: 6px;
+      padding: 16px;
+      overflow: auto;
+    }
+
+    .main-content code {
+      background-color: rgba(27, 31, 35, 0.05);
+      border-radius: 3px;
+      padding: 0.2em 0.4em;
+      font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+    }
+
+    .main-content pre code {
+      background-color: transparent;
+      padding: 0;
+    }
+
+    /* Badges */
+    .badges {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin: 20px 0;
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <h1>{{ site.title }}</h1>
+  </header>
+
+  <div class="site-container">
+    <aside class="sidebar">
+      <nav class="navigation">
+        <h2>Documentation</h2>
+        <ul>
+          <li{% if page.url == '/index.html' %} class="active"{% endif %}>
+            <a href="{{ '/' | relative_url }}">🏠 Home</a>
+          </li>
+
+          {% for doc in site.docs %}
+          <li{% if page.url == doc.url %} class="active"{% endif %}>
+            <a href="{{ doc.url | relative_url }}">{{ doc.title }}</a>
+          </li>
+          {% endfor %}
+        </ul>
+      </nav>
+    </aside>
+
+    <main class="main-content">
+      {{ content }}
+    </main>
+  </div>
+</body>
+</html>

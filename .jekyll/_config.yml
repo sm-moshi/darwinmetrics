@@ -1,0 +1,63 @@
+title: darwinmetrics Documentation
+description: Documentation for darwinmetrics
+baseurl: ""
+url: ""
+
+# Build settings
+markdown: kramdown
+theme: minima
+plugins:
+- jekyll-feed
+- jekyll-seo-tag
+- jekyll-sitemap
+
+# Exclude from processing
+exclude:
+- Gemfile
+- Gemfile.lock
+- node_modules/
+- vendor/bundle/
+- vendor/cache/
+- vendor/gems/
+- vendor/ruby/
+- .git/
+- .github/
+- .gitignore
+
+# Include files that would otherwise be excluded
+include:
+- README.md
+
+# Collections
+collections:
+  docs:
+    output: true
+    permalink: /:collection/:path/
+
+# Defaults
+defaults:
+- scope:
+    path: ""
+    type: "docs"
+  values:
+    layout: "doc"
+- scope:
+    path: ""
+  values:
+    layout: "default"
+- scope:
+    path: "README.md"
+  values:
+    layout: "home"
+
+# Sass settings
+sass:
+  style: compressed
+  sass_dir: _sass
+
+# Additional settings
+show_excerpts: true
+header_pages:
+- docs.md
+- changelog.md
+- roadmap.md
