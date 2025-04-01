@@ -5,9 +5,17 @@ permalink: /index.html
 ---
 
 <div class="badges">
+<a href="https://github.com/sm-moshi/darwinmetrics">
+  <img src="https://img.shields.io/badge/nimble-main-green" alt="nimble">
+</a>
 <a href="https://github.com/sm-moshi/darwinmetrics/actions/workflows/build.yml"><img src="https://github.com/sm-moshi/darwinmetrics/actions/workflows/build.yml/badge.svg?branch=main" alt="Build Status"></a>
-<a href="https://codecov.io/gh/sm-moshi/darwinmetrics"><img src="https://codecov.io/gh/sm-moshi/darwinmetrics/branch/main/graph/badge.svg" alt="Coverage"></a>
 <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
+<a href="docs/CHANGELOG.md">
+  <img src="https://img.shields.io/badge/changelog-Keep%20a%20Changelog-%23E05735" alt="Keep a Changelog">
+</a>
+<a href="#">
+  <img src="https://img.shields.io/badge/platform-macOS%20(Darwin)-lightblue.svg" alt="Platform: macOS">
+</a>
 </div>
 
 ## Welcome to darwinmetrics
