@@ -4,66 +4,29 @@
 ## Requires macOS 12.0+ (Darwin 21.0+).
 
 import std/[strformat, strutils, options, times, deques, asyncdispatch, locks]
-import ../internal/platform_darwin
-import ../internal/darwin_errors
+import ../internal/[platform_darwin, cpu_types, darwin_errors]
 from ../internal/mach_stats import
   HostCpuLoadInfo, HostLoadInfo, KERN_SUCCESS, LOAD_SCALE, PROCESSOR_CPU_LOAD_INFO,
   mach_host_self, host_processor_info, vm_deallocate, getHostLoadInfo, getHostCpuLoadInfo
 
-type CpuUsage* = object        ## CPU usage information
-  user*: float                ## Percentage of time spent in user mode (0-100)
-  system*: float              ## Percentage of time spent in system mode (0-100)
-  idle*: float                ## Percentage of time spent idle (0-100)
-  nice*: float                ## Percentage of time spent in nice priority (0-100)
-  total*: float               ## Total CPU usage percentage (0-100)
-
-type CpuFrequency* = object    ## CPU frequency information
-  nominal*: float             ## Nominal (base) frequency in MHz
-  current*: Option[float]     ## Current frequency in MHz (if available)
-  max*: Option[float]         ## Maximum frequency in MHz (if available)
-  min*: Option[float]         ## Minimum frequency in MHz (if available)
-
-type CpuInfo* = object         ## CPU information structure
-  physicalCores*: int          ## Number of physical CPU cores
-  logicalCores*: int           ## Number of logical CPU cores (including hyperthreading)
-  architecture*: string        ## CPU architecture (e.g., "arm64" or "x86_64")
-  model*: string              ## Machine model identifier
-  brand*: string              ## CPU brand string
-  frequency*: CpuFrequency    ## CPU frequency information
-  usage*: CpuUsage            ## Current CPU usage information
-
-type LoadAverage* = object ## System load average information
-  oneMinute*: float        ## 1-minute load average
-  fiveMinute*: float       ## 5-minute load average
-  fifteenMinute*: float    ## 15-minute load average
-  timestamp*: Time         ## When this measurement was taken
-
-type LoadHistory* = ref object     ## Historical load average tracking
-  samples*: Deque[LoadAverage]    ## Load average samples
-  maxSamples*: int               ## Maximum number of samples to keep
-  lock: Lock                     ## Lock for thread-safe access
+export cpu_types
 
 const DefaultMaxSamples = 60 # Keep 1 hour of samples at 1-minute intervals
 
-proc validateCpuInfo(info: CpuInfo) =
-  ## Validates CPU information
-  ## Raises DarwinError if any fields are invalid
+proc validateCpuInfo*(info: CpuInfo) =
+  ## Validates CPU information, raising DarwinError for invalid fields
   if info.physicalCores <= 0:
-    raise
-      newException(DarwinError, "Invalid physical core count: " &
-          $info.physicalCores)
-  if info.logicalCores < info.physicalCores:
-    raise newException(DarwinError, "Logical cores cannot be less than physical cores")
-  if info.logicalCores mod info.physicalCores != 0:
-    raise
-      newException(DarwinError, "Logical cores must be a multiple of physical cores")
+    raise newException(DarwinError, "Invalid physical core count")
+  if info.logicalCores <= 0:
+    raise newException(DarwinError, "Invalid logical core count")
+  if info.architecture.len == 0:
+    raise newException(DarwinError, "Missing CPU architecture")
   if info.architecture notin ["arm64", "x86_64"]:
-    raise newException(DarwinError, "Invalid architecture: " &
-        info.architecture)
+    raise newException(DarwinError, "Invalid CPU architecture: " & info.architecture)
   if info.model.len == 0:
-    raise newException(DarwinError, "Model cannot be empty")
+    raise newException(DarwinError, "Missing machine model")
   if info.brand.len == 0:
-    raise newException(DarwinError, "Brand cannot be empty")
+    raise newException(DarwinError, "Missing CPU brand")
 
 proc newCpuInfo*(
     physicalCores: int,
