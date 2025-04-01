@@ -9,9 +9,9 @@
 ##
 ## Note: While sysctlbyname is available in earlier versions, we set a minimum
 ## supported version to ensure consistent behavior and feature availability.
-{.push raises: [].}
 
 import std/[strutils]
+import ./darwin_errors
 
 type
   SysctlError* = object of CatchableError
@@ -21,21 +21,41 @@ proc sysctlbyname(
   name: cstring, oldp: pointer, oldlenp: ptr uint, newp: pointer, newlen: uint
 ): cint {.importc, header: "<sys/sysctl.h>".}
 
-proc getSysctlString*(name: string): string {.raises: [SysctlError].} =
-  ## Retrieves a string value from sysctl by name
-  var size: uint = 0
-  if sysctlbyname(name.cstring, nil, addr size, nil, 0) < 0:
-    raise newException(SysctlError, "Failed to get size for " & name)
+proc getSysctlString*(name: string): string =
+  ## Get string value from sysctl
+  ## Raises DarwinError if the sysctl call fails
+  var
+    len: uint = 0
+    oldp: pointer
 
-  result = newString(size)
-  if sysctlbyname(name.cstring, addr result[0], addr size, nil, 0) < 0:
-    raise newException(SysctlError, "Failed to get value for " & name)
+  # First get the string length
+  if sysctlbyname(name.cstring, nil, len.addr, nil, 0) != 0:
+    raise newException(DarwinError, "Failed to get sysctl length for " & name)
+
+  # Allocate buffer and get the value
+  result = newString(len)
+  if sysctlbyname(name.cstring, result[0].addr, len.addr, nil, 0) != 0:
+    raise newException(DarwinError, "Failed to get sysctl value for " & name)
 
   # Remove null terminator if present
   if result.endsWith('\0'):
     result.setLen(result.len - 1)
 
-proc getDarwinVersion*(): tuple[major, minor: int] {.raises: [SysctlError].} =
+proc getSysctlInt*(name: string): int =
+  ## Get integer value from sysctl
+  ## Raises DarwinError if the sysctl call fails
+  var
+    value: int
+    size = sizeof(value).uint
+
+  if sysctlbyname(name.cstring, value.addr, size.addr, nil, 0) != 0:
+    raise newException(DarwinError, "Failed to get sysctl value for " & name)
+
+  result = value
+
+proc getDarwinVersion*(): tuple[major, minor: int] {.
+    raises: [SysctlError, DarwinError]
+.} =
   ## Returns the Darwin kernel version as major.minor
   let version = getSysctlString("kern.osrelease")
   try:
@@ -47,32 +67,30 @@ proc getDarwinVersion*(): tuple[major, minor: int] {.raises: [SysctlError].} =
   except ValueError:
     raise newException(SysctlError, "Failed to parse Darwin version: " & version)
 
-proc checkDarwinVersion*() {.raises: [DarwinVersionError].} =
-  ## Verifies that the current Darwin version meets minimum requirements
-  try:
-    let (major, minor) = getDarwinVersion()
-    if major < 21:
-      raise newException(
-        DarwinVersionError,
-        "Darwin version " & $major & "." & $minor &
-        " is not supported. Minimum required version is 21.0 (macOS 12.0)"
-      )
-  except SysctlError as e:
-    raise newException(DarwinVersionError, "Failed to check Darwin version: " & e.msg)
+proc checkDarwinVersion*() {.raises: [DarwinError, DarwinVersionError, ValueError].} =
+  ## Check if current Darwin version meets minimum requirements
+  ## Raises:
+  ## * DarwinVersionError if version is too old
+  ## * ValueError if version string is malformed
+  const MinVersion = 21 # macOS 12.0
+  let version = parseInt(getSysctlString("kern.osrelease").split('.')[0])
 
-proc getMachineArchitecture*(): string {.raises: [SysctlError, DarwinVersionError].} =
-  ## Returns the machine architecture (e.g. "arm64" for Apple Silicon, "x86_64" for Intel)
-  checkDarwinVersion()
+  if version < MinVersion:
+    raise newException(
+      DarwinVersionError,
+      "Darwin version " & $version & " is not supported. " &
+        "Minimum required version is " & $MinVersion & " (macOS 12.0+)",
+    )
+
+# Platform detection functions
+proc getMachineArchitecture*(): string {.raises: [DarwinError].} =
+  ## Get the current machine architecture
   result = getSysctlString("hw.machine")
 
-proc getMachineModel*(): string {.raises: [SysctlError, DarwinVersionError].} =
-  ## Returns the machine model identifier (e.g. "MacBookPro18,3")
-  checkDarwinVersion()
+proc getMachineModel*(): string {.raises: [DarwinError].} =
+  ## Get the current machine model
   result = getSysctlString("hw.model")
 
-proc getCpuBrand*(): string {.raises: [SysctlError, DarwinVersionError].} =
-  ## Returns the CPU brand string (e.g. "Apple M1 Pro")
-  checkDarwinVersion()
+proc getCpuBrand*(): string {.raises: [DarwinError].} =
+  ## Get the CPU brand string
   result = getSysctlString("machdep.cpu.brand_string")
-
-{.pop.}

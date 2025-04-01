@@ -13,7 +13,7 @@
 
 ## 📦 Features (TODO)
 
-- [ ] 🧠 Architecture detection (`arm64`, `x86_64`)
+- [x] 🧠 Architecture detection (`arm64`, `x86_64`)
 - [ ] 🖥️ CPU:
   - [ ] Per-core usage and load average
   - [ ] Frequency info

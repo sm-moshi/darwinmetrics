@@ -1,14 +1,16 @@
 import std/[unittest, strutils]
 import ../src/internal/platform_darwin
+import ../src/internal/darwin_errors
 
-when defined(macosx):
+when defined(darwin):
   suite "Darwin Platform Detection":
     test "getDarwinVersion returns valid version":
       let (major, minor) = getDarwinVersion()
       check:
-        major >= 21  # Darwin 21.0 (macOS 12.0) or later
+        major >= 21 # Darwin 21.0 (macOS 12.0) or later
         minor >= 0
-        $major & "." & $minor == getSysctlString("kern.osrelease").split('.')[0..1].join(".")
+        $major & "." & $minor ==
+          getSysctlString("kern.osrelease").split('.')[0 .. 1].join(".")
 
     test "checkDarwinVersion succeeds on supported versions":
       # Should not raise an exception
@@ -39,9 +41,9 @@ when defined(macosx):
       check value.len == 0
 
     test "getSysctlString raises on invalid key":
-      expect SysctlError:
+      expect (ref DarwinError):
         discard getSysctlString("invalid.key.that.does.not.exist")
 
 when isMainModule:
-  when not defined(macosx):
-    echo "Tests skipped: Not running on macOS"
+  when not defined(darwin):
+    echo "Tests skipped: Not running on Darwin platform"
