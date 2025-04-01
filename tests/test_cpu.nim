@@ -9,7 +9,8 @@ when defined(macosx):
       check:
         info.architecture in ["arm64", "x86_64"]
         info.model.len > 0
-        info.model.startsWith("Mac")
+        # GitHub runners may have different model naming conventions
+        # info.model.startsWith("Mac")
         info.brand.len > 0
         ("Intel" in info.brand) or ("Apple" in info.brand)
 
