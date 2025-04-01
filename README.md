@@ -1,10 +1,10 @@
 # 🐹 darwinmetrics
 
-[![Keep a Changelog](https://img.shields.io/badge/changelog-Keep%20a%20Changelog-%23E05735)](docs/CHANGELOG.md)
 [![nimble](https://img.shields.io/badge/nimble-main-green)](https://github.com/sm-moshi/darwinmetrics)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Build Status](https://github.com/sm-moshi/darwinmetrics/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/sm-moshi/darwinmetrics/actions/workflows/build.yml)
 [![Platform: macOS](https://img.shields.io/badge/platform-macOS%20(Darwin)-lightblue.svg)](#)
+[![Keep a Changelog](https://img.shields.io/badge/changelog-Keep%20a%20Changelog-%23E05735)](docs/CHANGELOG.md)
 
 > A pure Nim library for accessing macOS system metrics, ported from [`darwin-metrics`](https://github.com/sm-moshi/darwin-metrics) in Rust and [`dmetrics-go`](https://github.com/sm-moshi/dmetrics-go) in Go.
 
