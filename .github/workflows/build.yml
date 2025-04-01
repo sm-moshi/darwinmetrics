@@ -16,19 +16,23 @@ jobs:
     strategy:
       matrix:
         nim-version: ["2.2.2"]
-      fail-fast: false
+      fail-fast: true
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Cache nimble
-        id: cache-nimble
+      - name: Setup Nim
+        run: |
+          curl https://nim-lang.org/choosenim/init.sh -sSf | sh
+          export PATH=$HOME/.nimble/bin:$PATH
+          nimble refresh
+
+      - name: Cache Nimble packages
         uses: actions/cache@v4
         with:
           path: ~/.nimble
-          key: ${{ runner.os }}-nimble-${{ hashFiles('*.nimble') }}
-          restore-keys: |
-            ${{ runner.os }}-nimble-
+          key: ${{ runner.os }}-nimble-${{ hashFiles('darwinmetrics.nimble') }}
+          restore-keys: ${{ runner.os }}-nimble-
 
       - name: Build
         run: nimble build -Y
@@ -38,8 +42,7 @@ jobs:
 
       - name: Generate coverage
         if: matrix.nim-version == '2.2.2'
-        run: |
-          nimble coverage
+        run: nimble coverage
 
       - name: Upload coverage
         if: matrix.nim-version == '2.2.2'
