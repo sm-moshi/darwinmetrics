@@ -14,6 +14,7 @@ installExt    = @["nim"]
 # Dependencies
 
 requires "nim >= 2.2.2"
+requires "weave >= 0.4.0"
 
 # Modules to install
 installDirs = @["doctools"]
@@ -24,20 +25,29 @@ bin = @["doctools/docsync_cli=docsync"]
 # Tasks
 
 task test, "Run all tests":
-  --threads:on
-  --tlsEmulation:off
-  --passL:"-framework IOKit"
-  --passL:"-framework CoreFoundation"
+  # Set compilation flags
+  switch("threads", "on")
+  switch("tlsEmulation", "off")
+  switch("gc", "orc")
+  switch("passL", "-framework IOKit")
+  switch("passL", "-framework CoreFoundation")
+  switch("passL", "-framework Foundation")
+  switch("passL", "-framework CoreServices")
+  switch("passL", "-framework DiskArbitration")
+  switch("passL", "-framework SystemConfiguration")
+
+  # Run tests
   exec "nim c -r tests/test_all.nim"
-  exec "nim c -r tests/test_docsync.nim"
+  if fileExists("tests/test_docsync.nim"):
+    exec "nim c -r tests/test_docsync.nim"
 
 task coverage, "Generate coverage reports":
-  --threads:on
-  --tlsEmulation:off
-  --passL:"-framework IOKit"
-  --passL:"-framework CoreFoundation"
-  --debugger:native
-  --define:coverage
+  switch("threads", "on")
+  switch("tlsEmulation", "off")
+  switch("passL", "-framework IOKit")
+  switch("passL", "-framework CoreFoundation")
+  switch("debugger", "native")
+  switch("define", "coverage")
   exec "nim c -r tests/test_all"
 
 task format, "Format code using nimpretty":
@@ -51,15 +61,15 @@ task check, "Run static analysis":
   exec "nim check --hints:on --warnings:on src/doctools/docsync_cli.nim"
 
 task tsan, "Run with ThreadSanitizer":
-  --threads:on
-  --tlsEmulation:off
-  --gc:orc
-  --debugger:native
-  --passC:"-fsanitize=thread"
-  --passL:"-fsanitize=thread"
-  --passL:"-framework IOKit"
-  --passL:"-framework CoreFoundation"
-  --path:"."
+  switch("threads", "on")
+  switch("tlsEmulation", "off")
+  switch("gc", "orc")
+  switch("debugger", "native")
+  switch("passC", "-fsanitize=thread")
+  switch("passL", "-fsanitize=thread")
+  switch("passL", "-framework IOKit")
+  switch("passL", "-framework CoreFoundation")
+  switch("path", ".")
   exec "nim c -r tests/tsan_test.nim"
 
 task ci, "Run CI tasks":

@@ -15,7 +15,7 @@
 ## syncer.sync()
 ## ```
 
-import std/[os, strutils, strformat, options, sets]
+import std/[os, strutils, strformat, sets]
 
 type
   DocSyncError* = object of CatchableError
@@ -23,55 +23,34 @@ type
 
   DocSyncConfig* = object
     ## Configuration for documentation synchronization.
-    sourceDir*: string        ## Source documentation directory
-    targetDir*: string       ## Target Jekyll documentation directory
-    dryRun*: bool           ## If true, only show what would be done
-    recursive*: bool        ## If true, process subdirectories
-    verbose*: bool         ## If true, show detailed progress
+    sourceDir*: string ## Source documentation directory
+    targetDir*: string ## Target Jekyll documentation directory
+    dryRun*: bool      ## If true, only show what would be done
+    recursive*: bool   ## If true, process subdirectories
+    verbose*: bool     ## If true, show detailed progress
 
   DocSync* = ref object
     ## Documentation synchronization controller.
     config: DocSyncConfig
     processedFiles: HashSet[string]
+    hasErrors: bool
 
 const DefaultFrontMatter = """---
 layout: docs
-title: {title}
-permalink: /docs/{permalink}/
+title: $1
+permalink: /docs/$2/
 ---
 
 """
 
-proc ensureDir(dir: string) =
+proc ensureDir(dir: string): bool =
   ## Creates directory and all parent directories if they don't exist.
-  if not dirExists(dir):
-    try:
-      createDir(dir)
-    except OSError as e:
-      raise newException(DocSyncError, fmt"Failed to create directory {dir}: {e.msg}")
-
-proc newDocSync*(sourceDir, targetDir: string,
-                dryRun = false,
-                recursive = true,
-                verbose = false): DocSync =
-  ## Creates a new documentation synchronization controller.
-  ##
-  ## Args:
-  ##   sourceDir: Source documentation directory
-  ##   targetDir: Target Jekyll documentation directory
-  ##   dryRun: If true, only show what would be done
-  ##   recursive: If true, process subdirectories
-  ##   verbose: If true, show detailed progress
-  result = DocSync(
-    config: DocSyncConfig(
-      sourceDir: sourceDir.absolutePath(),
-      targetDir: targetDir.absolutePath(),
-      dryRun: dryRun,
-      recursive: recursive,
-      verbose: verbose
-    ),
-    processedFiles: initHashSet[string]()
-  )
+  ## Returns true if successful, false otherwise.
+  try:
+    createDir(dir)
+    result = true
+  except OSError:
+    result = false
 
 proc generateTitle(filename: string): string =
   ## Generates a Jekyll-friendly title from filename.
@@ -91,51 +70,98 @@ proc addFrontMatter(content, filename: string): string =
   let
     title = generateTitle(filename)
     permalink = generatePermalink(filename)
-  result = DefaultFrontMatter % ["title", title, "permalink", permalink]
+  result = DefaultFrontMatter % [title, permalink]
   result.add(content)
+
+proc canReadFile(path: string): bool =
+  ## Checks if a file exists and is readable.
+  try:
+    discard readFile(path)
+    result = true
+  except IOError:
+    result = false
 
 proc syncFile(self: DocSync, src, dest: string): bool =
   ## Syncs a single file from source to destination.
   ##
   ## Returns true if successful, false otherwise.
+  if self.config.dryRun:
+    if self.config.verbose:
+      echo fmt"[DRY RUN] Would sync: {src} -> {dest}"
+    self.processedFiles.incl(dest)
+    return true
+
+  # Check source file
+  if not fileExists(src):
+    if self.config.verbose:
+      echo fmt"Source file not found: {src}"
+    self.hasErrors = true
+    return false
+
+  # Check if we can read the source file
+  if not canReadFile(src):
+    if self.config.verbose:
+      echo fmt"Cannot read source file: {src}"
+    self.hasErrors = true
+    return false
+
+  # Read source content
+  var content: string
   try:
-    if not fileExists(src):
-      raise newException(DocSyncError, fmt"Source file not found: {src}")
+    content = readFile(src)
+  except IOError:
+    if self.config.verbose:
+      echo fmt"Failed to read source file: {src}"
+    self.hasErrors = true
+    return false
 
-    var content = readFile(src)
-    content = addFrontMatter(content, src.extractFilename)
+  # Process content
+  content = addFrontMatter(content, src.extractFilename)
 
-    if self.config.dryRun:
-      if self.config.verbose:
-        echo fmt"[DRY RUN] Would sync: {src} -> {dest}"
-      return true
+  # Ensure target directory exists
+  let targetDir = dest.parentDir
+  if not ensureDir(targetDir):
+    if self.config.verbose:
+      echo fmt"Failed to create directory: {targetDir}"
+    self.hasErrors = true
+    return false
 
-    # Ensure target directory exists
-    let targetDir = dest.parentDir
-    ensureDir(targetDir)
-
-    # Check if file has changed before writing
-    var shouldWrite = true
-    if fileExists(dest):
-      let existingContent = readFile(dest)
-      if existingContent == content:
-        shouldWrite = false
-        if self.config.verbose:
-          echo fmt"Skipped (unchanged): {src}"
-
-    if shouldWrite:
-      writeFile(dest, content)
-      if self.config.verbose:
-        echo fmt"Synced: {src} -> {dest}"
-
+  # Write the file
+  try:
+    writeFile(dest, content)
+    if self.config.verbose:
+      echo fmt"Synced: {src} -> {dest}"
     self.processedFiles.incl(dest)
     result = true
-
-  except:
-    let e = getCurrentException()
+  except IOError:
     if self.config.verbose:
-      echo fmt"Error syncing {src}: {e.msg}"
+      echo fmt"Failed to write file: {dest}"
+    self.hasErrors = true
     result = false
+
+proc newDocSync*(sourceDir, targetDir: string,
+                dryRun = false,
+                recursive = true,
+                verbose = false): DocSync =
+  ## Creates a new documentation synchronization controller.
+  ##
+  ## Args:
+  ##   sourceDir: Source documentation directory
+  ##   targetDir: Target Jekyll documentation directory
+  ##   dryRun: If true, only show what would be done
+  ##   recursive: If true, process subdirectories
+  ##   verbose: If true, show detailed progress
+  result = DocSync(
+    config: DocSyncConfig(
+      sourceDir: normalizedPath(sourceDir),
+      targetDir: normalizedPath(targetDir),
+      dryRun: dryRun,
+      recursive: recursive,
+      verbose: verbose
+    ),
+    processedFiles: initHashSet[string](),
+    hasErrors: false
+  )
 
 proc sync*(self: DocSync): bool =
   ## Synchronizes documentation from source to target directory.
@@ -143,38 +169,61 @@ proc sync*(self: DocSync): bool =
   ## in the target directory.
   ##
   ## Returns true if all files were synced successfully.
-  result = true
   self.processedFiles.clear()
+  self.hasErrors = false
 
-  # Validate and create directories
-  try:
-    if not dirExists(self.config.sourceDir):
-      raise newException(DocSyncError,
-        fmt"Source directory not found: {self.config.sourceDir}")
+  # Validate source directory
+  if not dirExists(self.config.sourceDir):
+    raise newException(DocSyncError,
+      fmt"Source directory not found: {self.config.sourceDir}")
 
-    if not self.config.dryRun:
-      ensureDir(self.config.targetDir)
-  except DocSyncError as e:
-    echo e.msg
+  # Create target directory if not in dry run mode
+  if not self.config.dryRun and not ensureDir(self.config.targetDir):
+    echo fmt"Failed to create target directory: {self.config.targetDir}"
     return false
 
-  # Process files
-  var pattern = self.config.sourceDir
-  if self.config.recursive:
-    pattern = pattern / "**" / "*.md"
-  else:
-    pattern = pattern / "*.md"
+  # First pass: sync files
+  for file in walkDirRec(self.config.sourceDir):
+    # Skip if not a markdown file
+    if not file.endsWith(".md"):
+      continue
 
-  for file in walkPattern(pattern):
+    # Skip if not recursive and file is in subdirectory
+    if not self.config.recursive and file.parentDir != self.config.sourceDir:
+      continue
+
     let
       relPath = relativePath(file, self.config.sourceDir)
       destFile = self.config.targetDir / relPath
 
     if not self.syncFile(file, destFile):
-      result = false
+      self.hasErrors = true
+
+  # Second pass: cleanup orphaned files if not in dry run mode
+  if not self.config.dryRun and dirExists(self.config.targetDir):
+    for file in walkDirRec(self.config.targetDir):
+      # Skip if not a markdown file
+      if not file.endsWith(".md"):
+        continue
+
+      # Skip if not recursive and file is in subdirectory
+      if not self.config.recursive and file.parentDir != self.config.targetDir:
+        continue
+
+      if file notin self.processedFiles:
+        try:
+          if self.config.verbose:
+            echo fmt"Removing orphaned file: {file}"
+          removeFile(file)
+        except OSError:
+          if self.config.verbose:
+            echo fmt"Error removing orphaned file: {file}"
+          self.hasErrors = true
 
   if self.config.verbose:
-    if result:
+    if not self.hasErrors:
       echo "Documentation sync complete! 🐹"
     else:
       echo "Documentation sync completed with errors! 🐹"
+
+  result = not self.hasErrors
