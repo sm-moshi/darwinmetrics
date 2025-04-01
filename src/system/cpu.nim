@@ -3,18 +3,32 @@
 ## This module provides CPU-related metrics and information for Darwin-based systems.
 ## Requires macOS 12.0+ (Darwin 21.0+).
 
-import std/[strformat, strutils, options, times, deques]
+import std/[strformat, strutils, options, times, deques, asyncdispatch, locks]
 import ../internal/platform_darwin
 import ../internal/darwin_errors
 import ../internal/mach_stats
+
+type CpuUsage* = object        ## CPU usage information
+  user*: float                ## Percentage of time spent in user mode (0-100)
+  system*: float              ## Percentage of time spent in system mode (0-100)
+  idle*: float                ## Percentage of time spent idle (0-100)
+  nice*: float                ## Percentage of time spent in nice priority (0-100)
+  total*: float               ## Total CPU usage percentage (0-100)
+
+type CpuFrequency* = object    ## CPU frequency information
+  nominal*: float             ## Nominal (base) frequency in MHz
+  current*: Option[float]     ## Current frequency in MHz (if available)
+  max*: Option[float]         ## Maximum frequency in MHz (if available)
+  min*: Option[float]         ## Minimum frequency in MHz (if available)
 
 type CpuInfo* = object         ## CPU information structure
   physicalCores*: int          ## Number of physical CPU cores
   logicalCores*: int           ## Number of logical CPU cores (including hyperthreading)
   architecture*: string        ## CPU architecture (e.g., "arm64" or "x86_64")
-  model*: string               ## Machine model identifier
-  brand*: string               ## CPU brand string
-  maxFrequency*: Option[float] ## Maximum CPU frequency in MHz (if available)
+  model*: string              ## Machine model identifier
+  brand*: string              ## CPU brand string
+  frequency*: CpuFrequency    ## CPU frequency information
+  usage*: CpuUsage            ## Current CPU usage information
 
 type LoadAverage* = object ## System load average information
   oneMinute*: float        ## 1-minute load average
@@ -22,9 +36,10 @@ type LoadAverage* = object ## System load average information
   fifteenMinute*: float    ## 15-minute load average
   timestamp*: Time         ## When this measurement was taken
 
-type LoadHistory* = object     ## Historical load average tracking
-  samples*: Deque[LoadAverage] ## Load average samples
-  maxSamples*: int             ## Maximum number of samples to keep
+type LoadHistory* = ref object     ## Historical load average tracking
+  samples*: Deque[LoadAverage]    ## Load average samples
+  maxSamples*: int               ## Maximum number of samples to keep
+  lock: Lock                     ## Lock for thread-safe access
 
 const DefaultMaxSamples = 60 # Keep 1 hour of samples at 1-minute intervals
 
@@ -54,7 +69,7 @@ proc newCpuInfo*(
     architecture: string,
     model: string,
     brand: string,
-    maxFrequency: Option[float] = none(float),
+    frequency: CpuFrequency,
 ): CpuInfo =
   ## Creates a new CpuInfo instance with validation
   ## Raises DarwinError if any fields are invalid
@@ -64,7 +79,7 @@ proc newCpuInfo*(
     architecture: architecture,
     model: model,
     brand: brand,
-    maxFrequency: maxFrequency,
+    frequency: frequency,
   )
   validateCpuInfo(result)
 
@@ -80,17 +95,130 @@ proc getCoreCount(): tuple[physical, logical: int] =
 
   result = (physical: physical, logical: logical)
 
-proc getMaxFrequency(): Option[float] =
-  ## Internal helper to get max CPU frequency
-  ## Returns None if frequency cannot be determined
-  try:
-    let freqHz = getSysctlInt("hw.cpufrequency_max")
-    if freqHz > 0:
-      some(freqHz.float / 1_000_000) # Convert Hz to MHz
+proc getFrequencyInfo(): CpuFrequency =
+  ## Get CPU frequency information
+  ## Note: Current frequency is not available in user mode on macOS
+  ## Returns nominal frequency and optionally max/min if available
+  result = CpuFrequency()
+
+  # On Apple Silicon, we can't get exact frequencies in user mode
+  # Set reasonable defaults based on chip family
+  let brand = getCpuBrand().toLowerAscii()
+  if "apple" in brand:
+    if "m1" in brand:
+      result.nominal = 3200.0 # M1 base frequency
+      result.max = some(3200.0)
+      result.min = some(600.0)
+    elif "m2" in brand:
+      result.nominal = 3500.0 # M2 base frequency
+      result.max = some(3500.0)
+      result.min = some(600.0)
     else:
-      none(float)
-  except DarwinError:
-    none(float)
+      result.nominal = 3200.0 # Default for unknown Apple Silicon
+      result.max = some(3200.0)
+      result.min = some(600.0)
+  else:
+    # For Intel CPUs, try to get frequency from sysctl
+    try:
+      let nominal = getSysctlInt("hw.cpufrequency")
+      if nominal <= 0:
+        raise newException(DarwinError, "Invalid CPU frequency returned by sysctl")
+      result.nominal = nominal.float / 1_000_000 # Convert Hz to MHz
+
+      # Get max frequency if available
+      let maxFreq = getSysctlInt("hw.cpufrequency_max")
+      if maxFreq > 0:
+        result.max = some(maxFreq.float / 1_000_000)
+
+      # Get min frequency if available
+      let minFreq = getSysctlInt("hw.cpufrequency_min")
+      if minFreq > 0:
+        result.min = some(minFreq.float / 1_000_000)
+    except DarwinError:
+      # If sysctl calls fail on Intel, use brand string to estimate
+      if "ghz" in brand:
+        for part in brand.split():
+          try:
+            result.nominal = parseFloat(part) * 1000.0
+            break
+          except ValueError:
+            continue
+      if result.nominal <= 0:
+        result.nominal = 2400.0 # Default fallback
+
+  # Current frequency is not available in user mode
+  # powermetrics could provide this but requires root access
+  result.current = none(float)
+
+proc calculateCpuUsage(prev, curr: HostCpuLoadInfo): CpuUsage =
+  ## Calculate CPU usage percentages from two consecutive CPU load info samples
+  var
+    userDiff = 0'f
+    systemDiff = 0'f
+    idleDiff = 0'f
+    niceDiff = 0'f
+    totalTicks = 0'f
+
+  # Calculate differences for each CPU state
+  for i in 0 .. 3:
+    let
+      userD = curr.userTicks[i] - prev.userTicks[i]
+      systemD = curr.systemTicks[i] - prev.systemTicks[i]
+      idleD = curr.idleTicks[i] - prev.idleTicks[i]
+      niceD = curr.niceTicks[i] - prev.niceTicks[i]
+      total = userD + systemD + idleD + niceD
+
+    if total > 0:
+      userDiff += userD.float
+      systemDiff += systemD.float
+      idleDiff += idleD.float
+      niceDiff += niceD.float
+      totalTicks += total.float
+
+  # Convert to percentages
+  if totalTicks > 0:
+    result = CpuUsage(
+      user: (userDiff / totalTicks) * 100,
+      system: (systemDiff / totalTicks) * 100,
+      idle: (idleDiff / totalTicks) * 100,
+      nice: (niceDiff / totalTicks) * 100,
+      total: ((totalTicks - idleDiff) / totalTicks) * 100
+    )
+  else:
+    # If no ticks have passed, assume the system is idle
+    result = CpuUsage(
+      user: 0.0,
+      system: 0.0,
+      idle: 100.0,
+      nice: 0.0,
+      total: 0.0
+    )
+
+var
+  lastCpuInfo: HostCpuLoadInfo # Store last CPU info for usage calculation
+  isFirstCall = true # Track first call to getCpuUsage
+
+proc getCpuUsage*(): CpuUsage {.raises: [DarwinError].} =
+  ## Get current CPU usage information
+  ## Returns percentages of time spent in different CPU states
+  ## Raises DarwinError if CPU information cannot be retrieved
+  let currInfo = getHostCpuLoadInfo()
+
+  if isFirstCall:
+    isFirstCall = false
+    lastCpuInfo = currInfo
+    # On first call, assume system is idle to avoid bogus initial reading
+    result = CpuUsage(
+      user: 0.0,
+      system: 0.0,
+      idle: 100.0,
+      nice: 0.0,
+      total: 0.0
+    )
+  else:
+    result = calculateCpuUsage(lastCpuInfo, currInfo)
+
+  lastCpuInfo = currInfo
 
 proc getCpuInfo*(): CpuInfo =
   ## Returns detailed CPU information for the current system.
@@ -100,7 +228,11 @@ proc getCpuInfo*(): CpuInfo =
   ## * CPU architecture (arm64/x86_64)
   ## * Machine model identifier
   ## * CPU brand string
-  ## * Maximum CPU frequency (if available)
+  ## * Frequency information (nominal, max, min if available)
+  ## * Current CPU usage information
+  ##
+  ## Note: Current CPU frequency is not available in user mode on macOS.
+  ## Use powermetrics (requires root) if you need real-time frequency data.
   ##
   ## Raises:
   ## * DarwinError if system information cannot be retrieved
@@ -115,25 +247,48 @@ proc getCpuInfo*(): CpuInfo =
     architecture = getMachineArchitecture(),
     model = getMachineModel(),
     brand = getCpuBrand(),
-    maxFrequency = getMaxFrequency(),
+    frequency = getFrequencyInfo(),
   )
+  result.usage = getCpuUsage()
+
+proc `$`*(usage: CpuUsage): string =
+  ## String representation of CPU usage information
+  fmt"""CPU Usage:
+  User:   {usage.user:.1f}%
+  System: {usage.system:.1f}%
+  Nice:   {usage.nice:.1f}%
+  Idle:   {usage.idle:.1f}%
+  Total:  {usage.total:.1f}%"""
+
+proc `$`*(freq: CpuFrequency): string =
+  ## String representation of CPU frequency information
+  var parts: seq[string] = @[]
+  parts.add fmt"Nominal: {freq.nominal:.0f} MHz"
+
+  if freq.current.isSome:
+    parts.add fmt"Current: {freq.current.get():.0f} MHz"
+  else:
+    parts.add "Current: Not available"
+
+  if freq.max.isSome:
+    parts.add fmt"Max: {freq.max.get():.0f} MHz"
+  if freq.min.isSome:
+    parts.add fmt"Min: {freq.min.get():.0f} MHz"
+
+  result = parts.join("\n  ")
 
 proc `$`*(info: CpuInfo): string =
   ## String representation of CPU information
   validateCpuInfo(info) # Validate before creating string representation
-  let freqStr =
-    if info.maxFrequency.isSome:
-      fmt"{info.maxFrequency.get():.1f} MHz"
-    else:
-      "Unknown"
-
   fmt"""CPU Information:
   Architecture: {info.architecture}
   Physical Cores: {info.physicalCores}
   Logical Cores: {info.logicalCores}
   Model: {info.model}
   Brand: {info.brand}
-  Max Frequency: {freqStr}"""
+  Frequency:
+  {$info.frequency}
+{$info.usage}"""
 
 proc validateLoadAverage(load: LoadAverage) =
   ## Validates load average values
@@ -162,23 +317,27 @@ proc `$`*(load: LoadAverage): string =
 proc newLoadHistory*(maxSamples: int = DefaultMaxSamples): LoadHistory =
   ## Creates a new load history tracker
   ## maxSamples determines how many samples to keep (default 60)
+  ## Thread-safe: Yes
   result = LoadHistory(
     samples: initDeque[LoadAverage](),
     maxSamples: maxSamples
   )
+  initLock(result.lock)
 
-proc add*(history: var LoadHistory, load: LoadAverage) =
+proc add*(history: LoadHistory, load: LoadAverage) =
   ## Adds a load average sample to the history
   ## If the history is full, the oldest sample is removed
+  ## Thread-safe: Yes
   validateLoadAverage(load)
-  if history.samples.len >= history.maxSamples:
-    discard history.samples.popFirst()
-  history.samples.addLast(load)
+  withLock history.lock:
+    if history.samples.len >= history.maxSamples:
+      discard history.samples.popFirst()
+    history.samples.addLast(load)
 
-proc getLoadAverage*(): LoadAverage {.raises: [DarwinError].} =
-  ## Get the current system load averages
+proc getLoadAverageAsync*(): Future[LoadAverage] {.async.} =
+  ## Get the current system load averages asynchronously
   ##
-  ## Returns a LoadAverage object containing the 1, 5, and 15 minute
+  ## Returns a Future[LoadAverage] containing the 1, 5, and 15 minute
   ## load averages along with the timestamp of measurement.
   ## Load averages represent the number of processes in the run queue
   ## (waiting for CPU time) averaged over the specified time period.
@@ -187,6 +346,7 @@ proc getLoadAverage*(): LoadAverage {.raises: [DarwinError].} =
   ## capacity to handle the current load. Values > 1.0 indicate
   ## processes are waiting for CPU time.
   ##
+  ## Thread-safe: Yes
   ## Raises DarwinError if the load averages cannot be retrieved
   let info = getHostLoadInfo()
 
@@ -198,3 +358,21 @@ proc getLoadAverage*(): LoadAverage {.raises: [DarwinError].} =
     timestamp: getTime(),
   )
   validateLoadAverage(result)
+
+proc startLoadMonitoring*(history: LoadHistory, interval: float = 60.0): Future[void] {.async.} =
+  ## Start monitoring load averages at the specified interval
+  ## The samples will be added to the provided history object
+  ##
+  ## Parameters:
+  ##   history: LoadHistory object to store samples in
+  ##   interval: Time in seconds between samples (default 60.0)
+  ##
+  ## Thread-safe: Yes
+  while true:
+    try:
+      let load = await getLoadAverageAsync()
+      history.add(load)
+    except DarwinError as e:
+      # Log error but continue monitoring
+      echo "Error getting load average: ", e.msg
+    await sleepAsync(int(interval * 1000))

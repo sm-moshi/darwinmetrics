@@ -26,7 +26,6 @@ proc getSysctlString*(name: string): string =
   ## Raises DarwinError if the sysctl call fails
   var
     len: uint = 0
-    oldp: pointer
 
   # First get the string length
   if sysctlbyname(name.cstring, nil, len.addr, nil, 0) != 0:

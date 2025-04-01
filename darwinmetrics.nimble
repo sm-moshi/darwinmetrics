@@ -40,6 +40,10 @@ task test, "Run all tests":
   exec "nim c -r tests/test_all.nim"
   if fileExists("tests/test_docsync.nim"):
     exec "nim c -r tests/test_docsync.nim"
+  if fileExists("tests/test_cpu.nim"):
+    exec "nim c -r tests/test_cpu.nim"
+  if fileExists("tests/test_system_cpu.nim"):
+    exec "nim c -r tests/test_system_cpu.nim"
 
 task coverage, "Generate coverage reports":
   switch("threads", "on")
