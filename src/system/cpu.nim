@@ -1,7 +1,42 @@
-## CPU metrics module for Darwin
+## CPU metrics module for Darwin systems
 ##
-## This module provides CPU-related metrics and information for Darwin-based systems.
-## Requires macOS 12.0+ (Darwin 21.0+).
+## This module provides a high-level interface for retrieving CPU information
+## and metrics on Darwin-based systems (macOS). It supports both Intel and
+## Apple Silicon architectures, providing accurate CPU statistics through
+## the Mach kernel interfaces.
+##
+## The module offers functionality for:
+## * CPU information (cores, architecture, model)
+## * CPU usage monitoring
+## * Frequency information
+## * Load average tracking
+## * Per-core statistics
+##
+## Example:
+##
+## ```nim
+## import darwinmetrics/system/cpu
+##
+## # Get detailed CPU information
+## let info = getCpuInfo()
+## echo "CPU: ", info.brand
+## echo "Architecture: ", info.architecture
+## echo "Physical cores: ", info.physicalCores
+##
+## # Monitor CPU usage
+## let usage = getCpuUsage()
+## echo "Total CPU usage: ", usage.total, "%"
+## echo "System: ", usage.system, "%"
+## echo "User: ", usage.user, "%"
+##
+## # Track load averages
+## let history = newLoadHistory()
+## let load = await getLoadAverageAsync()
+## echo "1-minute load: ", load.oneMinute
+## ```
+##
+## Note: Some features like current CPU frequency are not available in user mode
+## on macOS. Use powermetrics (requires root) for real-time frequency data.
 
 import std/[strformat, strutils, options, times, deques, asyncdispatch, locks]
 import ../internal/[platform_darwin, cpu_types, darwin_errors]

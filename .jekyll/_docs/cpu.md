@@ -19,6 +19,11 @@ echo info
 # Get load averages
 let load = getLoadAverageAsync().await
 echo load
+
+# Monitor per-core statistics
+let coreStats = getPerCoreCpuLoadInfo()
+for i, core in coreStats:
+  echo "Core ", i, " usage: ", core
 ```
 
 ## 📊 CPU Information
@@ -41,10 +46,10 @@ type CpuInfo* = object
 - `physicalCores`: Number of physical CPU cores
 - `logicalCores`: Number of logical CPU cores (including hyperthreading)
 - `architecture`: CPU architecture (e.g., "arm64" for Apple Silicon, "x86_64" for Intel)
-- `model`: CPU model identifier
+- `model`: CPU model identifier (e.g., "MacBookPro18,2")
 - `brand`: Full CPU brand string (e.g., "Apple M2 Pro")
 - `frequency`: CPU frequency information
-- `usage`: Current CPU usage statistics
+- `usage`: Current CPU usage statistics with user, system, idle, and nice percentages
 
 ## ⚡ CPU Frequency
 
@@ -63,15 +68,16 @@ type CpuFrequency* = object
 #### 🍎 Apple Silicon (M1/M2)
 
 - Nominal frequency: Base frequency (3.5 GHz for M2, 3.2 GHz for M1)
-- Min frequency: 600 MHz
+- Min frequency: 600 MHz (fixed)
 - Max frequency: Matches nominal frequency
-- Current frequency: Not available in user mode
+- Current frequency: Not available in user mode (requires powermetrics with root)
 
 #### 💻 Intel Processors
 
 - Primary: Retrieves frequency via sysctl
 - Fallback: Parses brand string if sysctl fails
 - Defaults: Provides reasonable values if exact data unavailable
+- Current frequency: Not available in user mode
 
 ## 📈 Load Averages
 
@@ -116,14 +122,17 @@ The CPU module provides thread-safe operations:
 - `add()` can be called from multiple threads
 - All Mach kernel bindings are properly managed for memory safety
 - Asynchronous operations like `getLoadAverageAsync()` are thread-safe
+- Per-core statistics collection is thread-safe
 
 ## ⚠️ Error Handling
 
-The module implements graceful fallbacks instead of raising exceptions:
+The module implements graceful fallbacks and clear error handling:
 
 - Invalid/unavailable values: Represented as `none(float)` in `CpuFrequency`
 - Core counts: Validated to be positive numbers
-- Architecture strings: Validated against known values
+- Architecture strings: Validated against known values ("arm64", "x86_64")
+- Mach kernel errors: Properly propagated with descriptive messages
+- Memory management: Automatic cleanup of Mach kernel resources
 
 ## 📝 Examples
 
@@ -155,9 +164,13 @@ echo "Recent load history: ", history
 
 - **macOS**: Full support for both Apple Silicon and Intel processors
 - **Minimum Version**: macOS 12.0+ (Darwin 21.0+)
+- **Architecture**: Native support for arm64 and x86_64
+- **Privileges**: User-mode operation (no root required)
+- **Memory Safety**: Automatic resource management
 
 ## 🔗 See Also
 
+- [💾 Memory Metrics](./memory.html)
 - [📊 System Metrics Overview](./metrics.html)
 - [⚙️ Configuration Options](./configuration.html)
 - [📚 API Reference](./api.html)
