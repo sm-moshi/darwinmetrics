@@ -130,16 +130,16 @@ This document outlines the planned implementation steps for the `darwinmetrics` 
 - [ ] Add test helpers and mocks
 - [ ] Add CI validation on macOS only
 - [ ] Add integration tests for async flows
-- [ ] Track coverage in Codecov
+- [x] Track coverage in Codecov
 
 ---
 
 ## 🧹 Dev & Tooling
 
-- [ ] Setup formatter (`nimpretty` + `nph`)
-- [ ] Setup static analysis (`nim check`)
-- [ ] Ensure ThreadSanitizer compatibility
-- [ ] Add Makefile or task runner (optional)
+- [x] Setup formatter (`nimpretty` + `nph`)
+- [x] Setup static analysis (`nim check`)
+- [x] Ensure ThreadSanitizer compatibility
+- [x] Add Makefile or task runner (optional)
 - [ ] Enable version pinning via `nimble.lock`
 
 ---
