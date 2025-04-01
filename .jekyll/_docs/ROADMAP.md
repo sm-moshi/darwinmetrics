@@ -1,4 +1,8 @@
-# 🛣 ROADMAP — darwinmetrics (Nim)
+---
+layout: docs
+title: 🛣️ Roadmap
+permalink: /docs/roadmap/
+---
 
 This document defines the long-term development goals and phased milestones for the `darwinmetrics` library. It reflects the functional parity target with [`darwin-metrics`](https://github.com/sm-moshi/darwin-metrics) (Rust) and [`dmetrics-go`](https://github.com/sm-moshi/dmetrics-go), while embracing idiomatic Nim practices.
 
@@ -95,3 +99,9 @@ This document defines the long-term development goals and phased milestones for 
 - [ ] gRPC + WebSocket support
 - [ ] Advanced async sampling manager
 - [ ] Dashboard UI (via Tauri or Dioxus)
+
+## Contributions
+
+We welcome contributions to help achieve these goals. See our [Contributing Guide]({% link _docs/contributing.md %}) for more information on how to get involved.
+
+If you have suggestions for the roadmap, please open an issue on our GitHub repository.

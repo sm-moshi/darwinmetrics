@@ -1,0 +1,202 @@
+// Reset and base styles
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html {
+    font-size: 16px;
+    scroll-behavior: smooth;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.6;
+    color: var(--color-text);
+    background-color: var(--color-bg);
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+// Typography
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    margin: 2rem 0 1rem;
+    line-height: 1.2;
+    color: var(--color-text);
+}
+
+p {
+    margin-bottom: 1rem;
+}
+
+a {
+    color: var(--color-link);
+    text-decoration: none;
+    transition: color 0.2s ease;
+
+    &:hover {
+        color: var(--color-link-hover);
+    }
+}
+
+// Layout
+header {
+    background-color: var(--color-header-bg);
+    padding: 1rem;
+    border-bottom: 1px solid var(--color-border);
+
+    nav {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 1rem;
+
+        a {
+            color: var(--color-header-text);
+            font-weight: 600;
+        }
+    }
+}
+
+main {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem 1rem;
+}
+
+footer {
+    background-color: var(--color-nav-bg);
+    color: var(--color-nav-text);
+    padding: 1rem;
+    text-align: center;
+    border-top: 1px solid var(--color-border);
+}
+
+// Documentation specific styles
+.doc-container {
+    display: grid;
+    grid-template-columns: 250px 1fr;
+    gap: 2rem;
+    margin-top: 2rem;
+}
+
+.doc-sidebar {
+    padding: 1rem;
+    border-right: 1px solid var(--color-border);
+
+    .doc-nav {
+        position: sticky;
+        top: 2rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+
+        a {
+            padding: 0.5rem;
+            border-radius: 4px;
+            color: var(--color-text);
+
+            &:hover {
+                background-color: var(--color-nav-bg);
+            }
+
+            &.active {
+                background-color: var(--color-link);
+                color: white;
+            }
+        }
+    }
+}
+
+.doc-content {
+    min-width: 0;
+    padding: 1rem;
+
+    h1 {
+        margin-top: 0;
+        border-bottom: 1px solid var(--color-border);
+        padding-bottom: 0.5rem;
+    }
+}
+
+// Code blocks
+pre,
+code {
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    background-color: var(--color-code-bg);
+    color: var(--color-code-text);
+    border-radius: 4px;
+}
+
+code {
+    padding: 0.2em 0.4em;
+    font-size: 0.9em;
+}
+
+pre {
+    padding: 1rem;
+    margin: 1rem 0;
+    overflow-x: auto;
+
+    code {
+        padding: 0;
+        background-color: transparent;
+    }
+}
+
+// Theme toggle button
+#theme-toggle {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: none;
+    background-color: var(--color-nav-bg);
+    color: var(--color-text);
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+
+    &:hover {
+        background-color: var(--color-border);
+    }
+
+    .sun-icon {
+        display: none;
+    }
+
+    .moon-icon {
+        display: block;
+    }
+}
+
+[data-theme="dark"] #theme-toggle {
+    .sun-icon {
+        display: block;
+    }
+
+    .moon-icon {
+        display: none;
+    }
+}
+
+// Responsive design
+@media (max-width: 768px) {
+    .doc-container {
+        grid-template-columns: 1fr;
+    }
+
+    .doc-sidebar {
+        border-right: none;
+        border-bottom: 1px solid var(--color-border);
+        margin-bottom: 2rem;
+    }
+}
