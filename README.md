@@ -1,8 +1,19 @@
 # 🐹 darwinmetrics
 
+<<<<<<< HEAD
 [![nimble](https://img.shields.io/badge/nimble-develop-orange)](https://github.com/sm-moshi/darwinmetrics)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Build Status](https://github.com/sm-moshi/darwinmetrics/actions/workflows/build.yml/badge.svg?branch=develop)](https://github.com/sm-moshi/darwinmetrics/actions/workflows/build.yml)
+||||||| parent of 6099163 (chore(docs): Just some Jekyll stuff. 🦧)
+[![Keep a Changelog](https://img.shields.io/badge/changelog-Keep%20a%20Changelog-%23E05735)](docs/CHANGELOG.md)
+[![nimble](https://img.shields.io/badge/nimble-main-green)](https://github.com/sm-moshi/darwinmetrics)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Build Status](https://github.com/sm-moshi/darwinmetrics/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/sm-moshi/darwinmetrics/actions/workflows/build.yml)
+=======
+[![nimble](https://img.shields.io/badge/nimble-main-green)](https://github.com/sm-moshi/darwinmetrics)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Build Status](https://github.com/sm-moshi/darwinmetrics/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/sm-moshi/darwinmetrics/actions/workflows/build.yml)
+>>>>>>> 6099163 (chore(docs): Just some Jekyll stuff. 🦧)
 [![Platform: macOS](https://img.shields.io/badge/platform-macOS%20(Darwin)-lightblue.svg)](#)
 [![Keep a Changelog](https://img.shields.io/badge/changelog-Keep%20a%20Changelog-%23E05735)](docs/CHANGELOG.md)
 
