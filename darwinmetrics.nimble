@@ -12,6 +12,9 @@ installExt    = @["nim"]
 
 # Dependencies
 requires "nim >= 2.2.2"
+requires "chronos >= 4.0.4"
+requires "stew >= 0.2.0"
+requires "results >= 0.5.1"
 
 # Optional Dependencies
 when defined(threads) and defined(test):
@@ -40,6 +43,7 @@ task test, "Run all tests":
   switch("passL", "-framework DiskArbitration")
   switch("passL", "-framework SystemConfiguration")
   switch("define", "test")
+  switch("define", "useChronos")  # Enable chronos async backend
 
   # Run tests
   exec "nim c -r tests/test_all.nim"
@@ -61,6 +65,7 @@ task coverage, "Generate coverage reports":
   switch("passL", "-framework CoreFoundation")
   switch("debugger", "native")
   switch("define", "coverage")
+  switch("define", "useChronos")  # Enable chronos async backend
   exec "nim c -r tests/test_all"
 
 task format, "Format code using nimpretty":
@@ -69,13 +74,14 @@ task format, "Format code using nimpretty":
   exec "nimpretty tests/*.nim"
 
 task check, "Run static analysis":
+  switch("define", "useChronos")  # Enable chronos async backend
   exec "nim check --hints:on --warnings:on src/darwinmetrics.nim"
   exec "nim check --hints:on --warnings:on src/doctools/sync.nim"
   exec "nim check --hints:on --warnings:on src/doctools/docsync_cli.nim"
 
 task tsan, "Run with ThreadSanitizer":
   # Run the test with thread sanitizer enabled
-  exec "CFLAGS='-fsanitize=thread' LDFLAGS='-fsanitize=thread -framework IOKit -framework CoreFoundation' nim c --threads:on --tlsEmulation:off --mm:orc --debugger:native -r tests/tsan_test.nim"
+  exec "CFLAGS='-fsanitize=thread' LDFLAGS='-fsanitize=thread -framework IOKit -framework CoreFoundation' nim c --threads:on --tlsEmulation:off --mm:orc --debugger:native -d:useChronos -r tests/tsan_test.nim"
 
 task ci, "Run CI tasks":
   exec "nimble check"
