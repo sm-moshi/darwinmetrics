@@ -32,7 +32,7 @@ when defined(darwin):
           nonAlphaNum.add(c)
       echo "Debug - Non-alphanumeric chars: [" & nonAlphaNum & "]"
       check:
-        model.len > 0  # Model string should not be empty
+        model.len > 0 # Model string should not be empty
         # Model should be a valid identifier - allow commas for Apple model IDs (e.g. "Mac14,9")
         model.allCharsInSet(Letters + Digits + {'-', '_', ' ', ','})
 
