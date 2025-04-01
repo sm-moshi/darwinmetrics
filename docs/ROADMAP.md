@@ -24,7 +24,7 @@ This document defines the long-term development goals and phased milestones for 
 
 - [~] CPU:
   - [x] Load average
-  - [ ] Per-core usage
+  - [x] Per-core usage
   - [x] Frequency
   - [x] Architecture-specific optimisations (arm64/x86_64)
 - [ ] Memory:

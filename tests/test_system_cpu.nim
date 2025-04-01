@@ -414,7 +414,8 @@ when defined(darwin):
           core.idleTicks[0] >= 0'u32
           core.niceTicks[0] >= 0'u32
           # At least one state should have non-zero ticks
-          core.userTicks[0] + core.systemTicks[0] + core.idleTicks[0] + core.niceTicks[0] > 0'u32
+          core.userTicks[0] + core.systemTicks[0] + core.idleTicks[0] +
+              core.niceTicks[0] > 0'u32
 
     test "Multiple calls to getPerCoreCpuLoadInfo show increasing tick counts":
       let firstSample = getPerCoreCpuLoadInfo()

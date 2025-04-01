@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.5.0] - 2024-04-01
+## [0.0.5] - 2024-04-01
 
 ### Added
 
@@ -13,12 +13,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Support for Apple Silicon (M1/M2) frequency reporting
   - Intel CPU frequency detection with brand string fallback
   - Flexible frequency tests for cross-architecture support
+  - Per-core CPU usage tracking:
+  - Added `getPerCoreCpuLoadInfo()` to get per-core load statistics
+  - CPU usage tracking with user/system/idle/nice percentages
+  - Thread-safe load history monitoring with locks
+  - Async load average monitoring interface
 
 ### Changed
 
 - **BREAKING**: Removed DarwinError from getFrequencyInfo for graceful fallbacks
 - Made frequency detection more resilient across architectures
 - Enhanced error handling with reasonable defaults for different CPU types
+- Memory management in CPU metrics:
+  - Corrected vm_deallocate header import from <mach/mach_vm.h> to <mach/vm_map.h>
+  - Fixed memory deallocation after retrieving per-core CPU information
+  - Properly exported Mach kernel functions for cross-module use
+  - Improved import structure for better code organization
+- Refactored CPU module to use selective imports
+- Enhanced thread safety in load history tracking
+- Added proper type annotations for Mach kernel bindings
 
 ## [0.0.4] - 2024-04-01
 
