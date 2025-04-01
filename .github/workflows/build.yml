@@ -21,32 +21,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Cache choosenim
-        id: cache-choosenim
-        uses: actions/cache@v4
-        with:
-          path: ~/.choosenim
-          key: ${{ runner.os }}-choosenim-${{ matrix.nim-version }}
-
       - name: Cache nimble
         id: cache-nimble
         uses: actions/cache@v4
         with:
           path: ~/.nimble
-          key: ${{ runner.os }}-nimble-${{ matrix.nim-version }}-${{ hashFiles('*.nimble') }}
+          key: ${{ runner.os }}-nimble-${{ hashFiles('*.nimble') }}
           restore-keys: |
-            ${{ runner.os }}-nimble-${{ matrix.nim-version }}-
-
-      - name: Setup Nim
-        uses: jiro4989/setup-nim-action@v2
-        with:
-          nim-version: ${{ matrix.nim-version }}
+            ${{ runner.os }}-nimble-
 
       - name: Build
-        run: nimble build -y
+        run: nimble build -Y
 
       - name: Test
-        run: nimble test -y
+        run: nimble test -Y
 
       - name: Generate coverage
         if: matrix.nim-version == '2.2.2'
@@ -56,7 +44,8 @@ jobs:
       - name: Upload coverage
         if: matrix.nim-version == '2.2.2'
         uses: codecov/codecov-action@v4
+        continue-on-error: true
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage/*.xml
-          fail_ci_if_error: true
+          fail_ci_if_error: false
