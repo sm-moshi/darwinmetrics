@@ -67,7 +67,8 @@ proc getDarwinVersion*(): tuple[major, minor: int] {.
   except ValueError:
     raise newException(SysctlError, "Failed to parse Darwin version: " & version)
 
-proc checkDarwinVersion*() {.raises: [DarwinError, DarwinVersionError, ValueError].} =
+proc checkDarwinVersion*() {.raises: [DarwinError, DarwinVersionError,
+    ValueError].} =
   ## Check if current Darwin version meets minimum requirements
   ## Raises:
   ## * DarwinVersionError if version is too old

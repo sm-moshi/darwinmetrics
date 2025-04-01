@@ -15,7 +15,8 @@
 
 - [x] 🧠 Architecture detection (`arm64`, `x86_64`)
 - [~] 🖥️ CPU:
-  - [ ] Per-core usage and load average
+  - [x] Load average monitoring (1/5/15-minute)
+  - [ ] Per-core usage stats
   - [ ] Frequency info
   - [ ] Thread-safe, async-compatible
 - [ ] 💾 Memory:

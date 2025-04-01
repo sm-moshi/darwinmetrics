@@ -26,8 +26,8 @@ This document defines the long-term development goals and phased milestones for 
 
 🎯 Goal: Implement reliable synchronous metrics for system monitoring
 
-- [ ] CPU:
-  - [ ] Load average
+- [~] CPU:
+  - [x] Load average
   - [ ] Per-core usage
   - [ ] Frequency
   - [ ] Architecture-specific optimisations (arm64/x86_64)

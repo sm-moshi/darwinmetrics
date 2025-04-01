@@ -3,38 +3,46 @@
 ## This module provides CPU-related metrics and information for Darwin-based systems.
 ## Requires macOS 12.0+ (Darwin 21.0+).
 
-import std/[strformat, strutils, options, times]
+import std/[strformat, strutils, options, times, deques]
 import ../internal/platform_darwin
 import ../internal/darwin_errors
 import ../internal/mach_stats
 
-type CpuInfo* = object ## CPU information structure
-  physicalCores*: int ## Number of physical CPU cores
-  logicalCores*: int ## Number of logical CPU cores (including hyperthreading)
-  architecture*: string ## CPU architecture (e.g., "arm64" or "x86_64")
-  model*: string ## Machine model identifier
-  brand*: string ## CPU brand string
+type CpuInfo* = object         ## CPU information structure
+  physicalCores*: int          ## Number of physical CPU cores
+  logicalCores*: int           ## Number of logical CPU cores (including hyperthreading)
+  architecture*: string        ## CPU architecture (e.g., "arm64" or "x86_64")
+  model*: string               ## Machine model identifier
+  brand*: string               ## CPU brand string
   maxFrequency*: Option[float] ## Maximum CPU frequency in MHz (if available)
 
 type LoadAverage* = object ## System load average information
-  oneMinute*: float ## 1-minute load average
-  fiveMinute*: float ## 5-minute load average
-  fifteenMinute*: float ## 15-minute load average
-  timestamp*: Time ## When this measurement was taken
+  oneMinute*: float        ## 1-minute load average
+  fiveMinute*: float       ## 5-minute load average
+  fifteenMinute*: float    ## 15-minute load average
+  timestamp*: Time         ## When this measurement was taken
+
+type LoadHistory* = object     ## Historical load average tracking
+  samples*: Deque[LoadAverage] ## Load average samples
+  maxSamples*: int             ## Maximum number of samples to keep
+
+const DefaultMaxSamples = 60 # Keep 1 hour of samples at 1-minute intervals
 
 proc validateCpuInfo(info: CpuInfo) =
   ## Validates CPU information
   ## Raises DarwinError if any fields are invalid
   if info.physicalCores <= 0:
     raise
-      newException(DarwinError, "Invalid physical core count: " & $info.physicalCores)
+      newException(DarwinError, "Invalid physical core count: " &
+          $info.physicalCores)
   if info.logicalCores < info.physicalCores:
     raise newException(DarwinError, "Logical cores cannot be less than physical cores")
   if info.logicalCores mod info.physicalCores != 0:
     raise
       newException(DarwinError, "Logical cores must be a multiple of physical cores")
   if info.architecture notin ["arm64", "x86_64"]:
-    raise newException(DarwinError, "Invalid architecture: " & info.architecture)
+    raise newException(DarwinError, "Invalid architecture: " &
+        info.architecture)
   if info.model.len == 0:
     raise newException(DarwinError, "Model cannot be empty")
   if info.brand.len == 0:
@@ -127,6 +135,46 @@ proc `$`*(info: CpuInfo): string =
   Brand: {info.brand}
   Max Frequency: {freqStr}"""
 
+proc validateLoadAverage(load: LoadAverage) =
+  ## Validates load average values
+  ## Raises DarwinError if any values are invalid
+  if load.oneMinute < 0.0:
+    raise newException(DarwinError, "Invalid 1-minute load average: " &
+        $load.oneMinute)
+  if load.fiveMinute < 0.0:
+    raise newException(DarwinError, "Invalid 5-minute load average: " &
+        $load.fiveMinute)
+  if load.fifteenMinute < 0.0:
+    raise newException(DarwinError, "Invalid 15-minute load average: " &
+        $load.fifteenMinute)
+  if load.timestamp > getTime():
+    raise newException(DarwinError, "Load average timestamp is in the future")
+
+proc `$`*(load: LoadAverage): string =
+  ## String representation of load average information
+  validateLoadAverage(load)
+  fmt"""Load Averages:
+  1 minute:  {load.oneMinute:.2f}
+  5 minute:  {load.fiveMinute:.2f}
+  15 minute: {load.fifteenMinute:.2f}
+  Timestamp: {load.timestamp.format("yyyy-MM-dd HH:mm:ss")}"""
+
+proc newLoadHistory*(maxSamples: int = DefaultMaxSamples): LoadHistory =
+  ## Creates a new load history tracker
+  ## maxSamples determines how many samples to keep (default 60)
+  result = LoadHistory(
+    samples: initDeque[LoadAverage](),
+    maxSamples: maxSamples
+  )
+
+proc add*(history: var LoadHistory, load: LoadAverage) =
+  ## Adds a load average sample to the history
+  ## If the history is full, the oldest sample is removed
+  validateLoadAverage(load)
+  if history.samples.len >= history.maxSamples:
+    discard history.samples.popFirst()
+  history.samples.addLast(load)
+
 proc getLoadAverage*(): LoadAverage {.raises: [DarwinError].} =
   ## Get the current system load averages
   ##
@@ -134,6 +182,10 @@ proc getLoadAverage*(): LoadAverage {.raises: [DarwinError].} =
   ## load averages along with the timestamp of measurement.
   ## Load averages represent the number of processes in the run queue
   ## (waiting for CPU time) averaged over the specified time period.
+  ##
+  ## A load average of 1.0 means the system has exactly enough CPU
+  ## capacity to handle the current load. Values > 1.0 indicate
+  ## processes are waiting for CPU time.
   ##
   ## Raises DarwinError if the load averages cannot be retrieved
   let info = getHostLoadInfo()
@@ -145,3 +197,4 @@ proc getLoadAverage*(): LoadAverage {.raises: [DarwinError].} =
     fifteenMinute: info.avenrun[2].float / LOAD_SCALE.float,
     timestamp: getTime(),
   )
+  validateLoadAverage(result)

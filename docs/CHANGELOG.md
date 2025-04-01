@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.4] - 2024-04-01
+
+### Added
+
+- CPU load average monitoring:
+  - LoadAverage type with 1/5/15-minute averages
+  - Historical load tracking with configurable sample size
+  - Mach kernel statistics integration
+  - Timestamp validation and chronological ordering
+  - Comprehensive test coverage
+
+### Changed
+
+- Enhanced CPU metrics module structure
+- Improved test suite reliability
+
+### Fixed
+
+- Deque handling in LoadHistory tests
+- Timestamp validation in load average tracking
+
 ## [0.0.3] - 2024-04-01
 
 ### Added

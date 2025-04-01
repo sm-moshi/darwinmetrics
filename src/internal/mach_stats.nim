@@ -15,13 +15,13 @@ type
   MachTimeT* = uint32 ## Mach time type
 
   HostCpuLoadInfo* {.pure, packed.} = object
-    userTicks*: array[0 .. 3, uint32] ## CPU ticks in user mode
+    userTicks*: array[0 .. 3, uint32]   ## CPU ticks in user mode
     systemTicks*: array[0 .. 3, uint32] ## CPU ticks in system mode
-    idleTicks*: array[0 .. 3, uint32] ## CPU ticks idle
-    niceTicks*: array[0 .. 3, uint32] ## CPU ticks in nice priority
+    idleTicks*: array[0 .. 3, uint32]   ## CPU ticks idle
+    niceTicks*: array[0 .. 3, uint32]   ## CPU ticks in nice priority
 
   HostLoadInfo* {.pure, packed.} = object
-    avenrun*: array[0 .. 2, int32] ## Load averages (scaled by LOAD_SCALE)
+    avenrun*: array[0 .. 2, int32]     ## Load averages (scaled by LOAD_SCALE)
     mach_factor*: array[0 .. 2, int32] ## Resource availability mach factor
 
 const

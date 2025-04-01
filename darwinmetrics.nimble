@@ -1,6 +1,6 @@
 # Package
 
-version       = "0.0.3"
+version       = "0.0.4"
 author        = "Stuart Meya"
 description   = "System metrics library for macOS (Darwin) written in pure Nim — CPU, memory, disk, processes, and more."
 license       = "MIT"

@@ -31,7 +31,7 @@ This document outlines the planned implementation steps for the `darwinmetrics` 
 
 - [x] Get number of physical/logical cores
 - [ ] Retrieve per-core and total usage
-- [ ] Measure load average
+- [x] Measure load average
 - [ ] Detect current and max frequency
 - [ ] Async update interface
 - [x] Unit tests with mocked values
