@@ -67,10 +67,43 @@ Returns system memory statistics including RAM and swap usage.
 ### Power Management
 
 ```nim
-proc getPowerInfo*(): PowerInfo
+proc getPowerInfo*(): PowerInfo {.raises: [].}
 ```
 
-Returns power-related information including battery status and charging state.
+Returns comprehensive power and battery information including battery presence, charge level,
+power source, charging status, and estimated times for battery operation.
+
+```nim
+proc getBatteryPercentage*(): float {.raises: [].}
+```
+
+Returns the current battery percentage (0-100). On systems without batteries, returns 0.0.
+
+```nim
+proc isPowerAdapterConnected*(): bool {.raises: [].}
+```
+
+Checks if the system is connected to an external power source.
+Returns true if on AC power, false if on battery.
+
+```nim
+proc getRemainingTime*(): Option[int] {.raises: [].}
+```
+
+Returns the estimated time remaining in minutes for battery operation.
+If the system is on AC power or has no battery, returns None.
+
+```nim
+proc getBatteryHealth*(): Option[BatteryHealth] {.raises: [].}
+```
+
+Returns battery health information if available, including cycle count, condition, and capacity metrics.
+
+```nim
+proc getThermalPressureLevel*(): ThermalPressure {.raises: [].}
+```
+
+Returns the current thermal pressure level, indicating if the system is experiencing thermal issues.
 
 ### Temperature Sensors
 
@@ -151,6 +184,65 @@ type LoadHistory* = ref object
   # Thread synchronization handled internally with locks
 ```
 
+### PowerInfo
+
+```nim
+type PowerInfo* = object
+  isPresent*: bool         ## Whether battery is present
+  status*: PowerStatus     ## Current power status
+  source*: PowerSource     ## Current power source
+  percentRemaining*: float ## Battery percentage (0-100)
+  timeRemaining*: Option[int] ## Estimated minutes remaining on battery
+  timeToFull*: Option[int] ## Estimated minutes until full charge
+  health*: Option[BatteryHealth] ## Battery health if available
+  isLowPower*: bool        ## Whether low power mode is active
+  thermalPressure*: ThermalPressure ## Current thermal pressure level
+```
+
+### PowerStatus
+
+```nim
+type PowerStatus* = enum
+  Charging        ## Battery is currently charging
+  Discharging     ## Battery is discharging (on battery power)
+  Full            ## Battery is fully charged
+  ACPowered       ## System is AC powered with no battery
+  Unknown         ## Status cannot be determined
+```
+
+### PowerSource
+
+```nim
+type PowerSource* = enum
+  Battery         ## Running on battery power
+  AC              ## Running on AC power (mains electricity)
+  UPS             ## Running on uninterruptible power supply
+  Unknown         ## Power source cannot be determined
+```
+
+### BatteryHealth
+
+```nim
+type BatteryHealth* = object
+  cycleCount*: int         ## Battery charge cycles completed
+  condition*: string       ## Condition (Normal, Poor, etc.)
+  temperature*: float      ## Battery temperature in °C if available
+  designCapacity*: int     ## Design capacity in mAh
+  currentCapacity*: int    ## Current maximum capacity in mAh
+  maxCapacity*: int        ## Maximum capacity in mAh
+```
+
+### ThermalPressure
+
+```nim
+type ThermalPressure* = enum
+  Normal          ## System thermal state is normal
+  Moderate        ## System under moderate thermal pressure
+  Heavy           ## System under heavy thermal pressure
+  Critical        ## System experiencing critical thermal issues
+  Unknown         ## Thermal state cannot be determined
+```
+
 ## 🛠️ Constants
 
 ```nim
@@ -165,10 +257,14 @@ type DarwinError* = object of Exception
 
 type DarwinVersionError* = object of Exception
   ## Raised when running on an unsupported Darwin version
+
+type PowerError* = object of Exception
+  ## Raised when a power-related operation fails
 ```
 
 ## 🔗 See Also
 
 - [💻 CPU Metrics Documentation](./cpu.html)
+- [🔋 Power Metrics Documentation](./power.html)
 - [📊 System Metrics Overview](./metrics.html)
 - [⚙️ Configuration Options](./configuration.html)
