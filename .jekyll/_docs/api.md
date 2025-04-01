@@ -4,15 +4,48 @@ title: 🔌 API Reference
 permalink: /docs/api/
 ---
 
-## Core Functions
+## 🖥️ Core Functions
 
 ### CPU Information
 
 ```nim
-proc getCpuInfo*(): CpuInfo
+proc getCpuInfo*(): CpuInfo {.raises: [DarwinError, DarwinVersionError].}
 ```
 
-Returns detailed CPU information including architecture, cores, and current usage.
+Returns detailed CPU information including architecture, cores, frequency, and current usage.
+Supports both Apple Silicon and Intel processors.
+
+```nim
+proc getCpuUsage*(): CpuUsage {.raises: [DarwinError].}
+```
+
+Returns current CPU usage percentages across different states (user, system, idle, nice).
+
+### Load Average Monitoring
+
+```nim
+proc getLoadAverageAsync*(): Future[LoadAverage]
+```
+
+Asynchronously retrieves current system load averages. Thread-safe.
+
+```nim
+proc startLoadMonitoring*(history: LoadHistory, interval: float = 60.0): Future[void]
+```
+
+Starts monitoring load averages at the specified interval, storing samples in the provided history.
+
+```nim
+proc newLoadHistory*(maxSamples: int = DefaultMaxSamples): LoadHistory
+```
+
+Creates a new thread-safe load history tracker with the specified maximum sample size.
+
+```nim
+proc add*(history: LoadHistory, load: LoadAverage)
+```
+
+Adds a load average sample to the history in a thread-safe manner.
 
 ### Memory Statistics
 
@@ -54,17 +87,79 @@ proc getProcessInfo*(pid: int): ProcessInfo
 
 Returns detailed information about a specific process.
 
-## Types
+## 📊 Types
 
 ### CpuInfo
 
 ```nim
 type CpuInfo* = object
-  architecture*: string  # arm64 or x86_64
-  cores*: int           # Number of CPU cores
-  threads*: int         # Number of threads
-  frequency*: float     # Current CPU frequency in MHz
-  usage*: float        # Current CPU usage percentage
+  physicalCores*: int          ## Number of physical CPU cores
+  logicalCores*: int           ## Number of logical CPU cores (including hyperthreading)
+  architecture*: string        ## CPU architecture (e.g., "arm64" or "x86_64")
+  model*: string              ## Machine model identifier
+  brand*: string              ## CPU brand string
+  frequency*: CpuFrequency    ## CPU frequency information
+  usage*: CpuUsage           ## Current CPU usage information
 ```
 
-[View more types...]({% link _docs/types.md %})
+### CpuFrequency
+
+```nim
+type CpuFrequency* = object
+  nominal*: float             ## Nominal (base) frequency in MHz
+  current*: Option[float]     ## Current frequency in MHz (if available)
+  max*: Option[float]         ## Maximum frequency in MHz (if available)
+  min*: Option[float]         ## Minimum frequency in MHz (if available)
+```
+
+### CpuUsage
+
+```nim
+type CpuUsage* = object
+  user*: float                ## Percentage of time spent in user mode (0-100)
+  system*: float              ## Percentage of time spent in system mode (0-100)
+  idle*: float                ## Percentage of time spent idle (0-100)
+  nice*: float                ## Percentage of time spent in nice priority (0-100)
+  total*: float               ## Total CPU usage percentage (0-100)
+```
+
+### LoadAverage
+
+```nim
+type LoadAverage* = object
+  oneMinute*: float          ## 1-minute load average
+  fiveMinute*: float         ## 5-minute load average
+  fifteenMinute*: float      ## 15-minute load average
+  timestamp*: Time           ## When this measurement was taken
+```
+
+### LoadHistory
+
+```nim
+type LoadHistory* = ref object
+  samples*: Deque[LoadAverage] ## Load average samples
+  maxSamples*: int            ## Maximum number of samples to keep
+  # Thread synchronization handled internally
+```
+
+## 🛠️ Constants
+
+```nim
+const DefaultMaxSamples* = 60  ## Default number of load average samples to keep
+```
+
+## ⚠️ Error Types
+
+```nim
+type DarwinError* = object of Exception
+  ## Raised when a Darwin-specific operation fails
+
+type DarwinVersionError* = object of Exception
+  ## Raised when running on an unsupported Darwin version
+```
+
+## 🔗 See Also
+
+- [💻 CPU Metrics Documentation](./cpu.html)
+- [📊 System Metrics Overview](./metrics.html)
+- [⚙️ Configuration Options](./configuration.html)

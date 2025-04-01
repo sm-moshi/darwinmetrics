@@ -22,13 +22,11 @@ We welcome contributions to darwinmetrics! This guide will help you get started 
    ```
 
 3. **Set Up Development Environment**
-   - Use a modern IDE with Nim support (VS Code with nim extension recommended)
-   - Install development tools:
-
-     ```bash
-     nimble install testament # For testing
-     nimble install nimlint  # For linting
-     ```
+   - Use a modern IDE with Nim support (e.g., VS Code with the Nim extension recommended).
+   - Development Tools:
+       - No additional installations are required.
+       - Nim includes the built-in `unittest` module for testing, so write tests using it and run them with `nimble test` or `nim c -r <testfile>.nim`.
+       - For code formatting, use `nimpretty` (included with Nim) and leverage your IDE's integrated linting and static analysis tools.
 
 ## Code Style
 

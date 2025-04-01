@@ -39,12 +39,14 @@ when defined(darwin):
         info.model.len > 0
         info.brand.len > 0
         # Check frequency information
-        info.frequency.nominal > 0.0  # Base frequency should be available
+        info.frequency.nominal > 0.0 # Base frequency should be available
         info.frequency.current.isNone # Current frequency not available in user mode
         # Max and min frequencies are optional
-        (if info.frequency.max.isSome: info.frequency.max.get() >= info.frequency.nominal
+        (if info.frequency.max.isSome: info.frequency.max.get() >=
+            info.frequency.nominal
         else: true)
-        (if info.frequency.min.isSome: info.frequency.min.get() <= info.frequency.nominal
+        (if info.frequency.min.isSome: info.frequency.min.get() <=
+            info.frequency.nominal
         else: true)
         # Check CPU usage values are valid
         info.usage.user >= 0.0 and info.usage.user <= 100.0
@@ -55,7 +57,8 @@ when defined(darwin):
         # Total should be complement of idle
         almostEqual(info.usage.total, 100.0 - info.usage.idle)
         # Sum of user, system, idle, and nice should be approximately 100%
-        almostEqual(info.usage.user + info.usage.system + info.usage.idle + info.usage.nice, 100.0)
+        almostEqual(info.usage.user + info.usage.system + info.usage.idle +
+            info.usage.nice, 100.0)
 
     test "CpuInfo string representation is formatted correctly":
       let info = getCpuInfo()
@@ -78,7 +81,7 @@ when defined(darwin):
 
     test "getCpuInfo handles missing frequency gracefully":
       var freq = CpuFrequency()
-      freq.nominal = 3500.0  # Updated to match M2 frequency
+      freq.nominal = 3500.0 # Updated to match M2 frequency
       freq.current = none(float)
       freq.max = none(float)
       freq.min = none(float)
@@ -101,7 +104,7 @@ when defined(darwin):
       let str = $info
       check:
         str.contains("Frequency:")
-        str.contains("MHz")  # Just check for MHz unit
+        str.contains("MHz") # Just check for MHz unit
         str.contains("Current: Not available")
 
     test "getCpuInfo validates core counts":
@@ -197,26 +200,26 @@ when defined(darwin):
 
     test "CpuFrequency string representation is formatted correctly":
       var freq = CpuFrequency()
-      freq.nominal = 3500.0  # Updated to match M2 frequency
+      freq.nominal = 3500.0 # Updated to match M2 frequency
       freq.current = none(float)
       freq.max = some(3500.0)
       freq.min = some(600.0)
       let str = $freq
       check:
-        str.contains("MHz")  # Just check for MHz unit
+        str.contains("MHz") # Just check for MHz unit
         str.contains("Current: Not available")
         str.contains("Max:")
         str.contains("Min:")
 
     test "CpuFrequency handles missing values":
       var freq = CpuFrequency()
-      freq.nominal = 3500.0  # Updated to match M2 frequency
+      freq.nominal = 3500.0 # Updated to match M2 frequency
       freq.current = none(float)
       freq.max = none(float)
       freq.min = none(float)
       let str = $freq
       check:
-        str.contains("MHz")  # Just check for MHz unit
+        str.contains("MHz") # Just check for MHz unit
         str.contains("Current: Not available")
         not str.contains("Max:")
         not str.contains("Min:")

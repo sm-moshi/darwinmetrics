@@ -1,5 +1,5 @@
 ---
-layout: docs
+layout: doc
 title: 🛣️ Roadmap
 permalink: /docs/roadmap/
 ---
@@ -29,8 +29,8 @@ This document defines the long-term development goals and phased milestones for 
 - [~] CPU:
   - [x] Load average
   - [ ] Per-core usage
-  - [ ] Frequency
-  - [ ] Architecture-specific optimisations (arm64/x86_64)
+  - [x] Frequency
+  - [x] Architecture-specific optimisations (arm64/x86_64)
 - [ ] Memory:
   - [ ] RAM + Swap
   - [ ] Pressure (if available)
@@ -101,6 +101,12 @@ This document defines the long-term development goals and phased milestones for 
 - [ ] gRPC + WebSocket support
 - [ ] Advanced async sampling manager
 - [ ] Dashboard UI (via Tauri or Dioxus)
+
+## 🔗 See Also
+
+- [📝 Changelog](./changelog.html)
+- [📋 TODO List](./todo.html)
+- [📚 API Reference](./api.html)
 
 ## Contributions
 

@@ -17,7 +17,7 @@
 - [~] 🖥️ CPU:
   - [x] Load average monitoring (1/5/15-minute)
   - [ ] Per-core usage stats
-  - [ ] Frequency info
+  - [x] Frequency info
   - [ ] Thread-safe, async-compatible
 - [ ] 💾 Memory:
   - [ ] RAM and swap statistics

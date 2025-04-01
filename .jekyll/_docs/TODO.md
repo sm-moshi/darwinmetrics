@@ -1,6 +1,6 @@
 ---
-layout: docs
-title: ✅ Todo List
+layout: doc
+title: 📋 TODO List
 permalink: /docs/todo/
 ---
 
@@ -36,7 +36,7 @@ This document outlines the planned implementation steps for the `darwinmetrics` 
 - [x] Get number of physical/logical cores
 - [ ] Retrieve per-core and total usage
 - [x] Measure load average
-- [ ] Detect current and max frequency
+- [x] Detect current and max frequency
 - [ ] Async update interface
 - [x] Unit tests with mocked values
 
@@ -135,7 +135,7 @@ This document outlines the planned implementation steps for the `darwinmetrics` 
 - [ ] Add test helpers and mocks
 - [ ] Add CI validation on macOS only
 - [ ] Add integration tests for async flows
-- [ ] Track coverage in Codecov
+- [x] Track coverage in Codecov
 
 ---
 
@@ -144,7 +144,7 @@ This document outlines the planned implementation steps for the `darwinmetrics` 
 - [x] Setup formatter (`nimpretty` + `nph`)
 - [x] Setup static analysis (`nim check`)
 - [x] Ensure ThreadSanitizer compatibility
-- [ ] Add Makefile or task runner (optional)
+- [x] Add Makefile or task runner (optional)
 - [ ] Enable version pinning via `nimble.lock`
 
 ---
@@ -160,7 +160,13 @@ This document outlines the planned implementation steps for the `darwinmetrics` 
 
 ## 📄 Finalisation
 
-- [~] Publish GitHub release
+- [ ] Publish GitHub release
 - [x] Publish README with accurate usage and badge state
 - [x] Add CHANGELOG.md with Keep a Changelog format
 - [x] Announce roadmap completion
+
+## 🔗 See Also
+
+- [🛣️ Roadmap](./roadmap.html)
+- [📝 Changelog](./changelog.html)
+- [📚 API Reference](./api.html)
