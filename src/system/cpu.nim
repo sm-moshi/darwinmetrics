@@ -3,9 +3,10 @@
 ## This module provides CPU-related metrics and information for Darwin-based systems.
 ## Requires macOS 12.0+ (Darwin 21.0+).
 
-import std/[strformat, strutils, options]
+import std/[strformat, strutils, options, times]
 import ../internal/platform_darwin
 import ../internal/darwin_errors
+import ../internal/mach_stats
 
 type CpuInfo* = object ## CPU information structure
   physicalCores*: int ## Number of physical CPU cores
@@ -14,6 +15,12 @@ type CpuInfo* = object ## CPU information structure
   model*: string ## Machine model identifier
   brand*: string ## CPU brand string
   maxFrequency*: Option[float] ## Maximum CPU frequency in MHz (if available)
+
+type LoadAverage* = object ## System load average information
+  oneMinute*: float ## 1-minute load average
+  fiveMinute*: float ## 5-minute load average
+  fifteenMinute*: float ## 15-minute load average
+  timestamp*: Time ## When this measurement was taken
 
 proc validateCpuInfo(info: CpuInfo) =
   ## Validates CPU information
@@ -119,3 +126,22 @@ proc `$`*(info: CpuInfo): string =
   Model: {info.model}
   Brand: {info.brand}
   Max Frequency: {freqStr}"""
+
+proc getLoadAverage*(): LoadAverage {.raises: [DarwinError].} =
+  ## Get the current system load averages
+  ##
+  ## Returns a LoadAverage object containing the 1, 5, and 15 minute
+  ## load averages along with the timestamp of measurement.
+  ## Load averages represent the number of processes in the run queue
+  ## (waiting for CPU time) averaged over the specified time period.
+  ##
+  ## Raises DarwinError if the load averages cannot be retrieved
+  let info = getHostLoadInfo()
+
+  # Convert scaled load averages to float values
+  result = LoadAverage(
+    oneMinute: info.avenrun[0].float / LOAD_SCALE.float,
+    fiveMinute: info.avenrun[1].float / LOAD_SCALE.float,
+    fifteenMinute: info.avenrun[2].float / LOAD_SCALE.float,
+    timestamp: getTime(),
+  )

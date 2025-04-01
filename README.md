@@ -14,7 +14,7 @@
 ## 📦 Features (TODO)
 
 - [x] 🧠 Architecture detection (`arm64`, `x86_64`)
-- [ ] 🖥️ CPU:
+- [~] 🖥️ CPU:
   - [ ] Per-core usage and load average
   - [ ] Frequency info
   - [ ] Thread-safe, async-compatible

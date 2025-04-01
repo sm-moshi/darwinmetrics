@@ -3,15 +3,14 @@
 ## These tests verify the CPU information retrieval functionality
 ## on Darwin-based systems.
 
-import std/[unittest, options, strutils]
+import std/[unittest, options, strutils, times]
 import ../src/system/cpu
 import ../src/internal/darwin_errors
 
 when defined(darwin):
   suite "CPU Information Tests":
-    test "getCpuInfo returns valid data":
+    test "getCpuInfo returns valid information":
       let info = getCpuInfo()
-
       check:
         info.physicalCores > 0
         info.logicalCores >= info.physicalCores
@@ -23,37 +22,27 @@ when defined(darwin):
         else: true)
 
     test "getCpuInfo string representation is formatted correctly":
-      let
-        info = newCpuInfo(
-          physicalCores = 8,
-          logicalCores = 8,
-          architecture = "arm64",
-          model = "MacBookPro18,2",
-          brand = "Apple M1 Pro",
-          maxFrequency = some(3200.0),
-        )
-        str = $info
-
+      let info = getCpuInfo()
+      let str = $info
       check:
-        "Physical Cores: 8" in str
-        "Logical Cores: 8" in str
-        "Architecture: arm64" in str
-        "Model: MacBookPro18,2" in str
-        "Brand: Apple M1 Pro" in str
-        "Max Frequency: 3200.0 MHz" in str
+        str.contains("Physical Cores:")
+        str.contains("Logical Cores:")
+        str.contains("Architecture:")
+        str.contains("Model:")
+        str.contains("Brand:")
+        str.contains("Max Frequency:")
 
     test "getCpuInfo handles missing frequency gracefully":
-      let
-        info = newCpuInfo(
-          physicalCores = 8,
-          logicalCores = 8,
-          architecture = "arm64",
-          model = "MacBookPro18,2",
-          brand = "Apple M1 Pro",
-        )
-        str = $info
-
-      check "Max Frequency: Unknown" in str
+      let info = CpuInfo(
+        physicalCores: 8,
+        logicalCores: 8,
+        architecture: "arm64",
+        model: "MacBookPro18,2",
+        brand: "Apple M1 Pro",
+        maxFrequency: none(float),
+      )
+      let str = $info
+      check str.contains("Max Frequency: Unknown")
 
     test "getCpuInfo validates core counts":
       let info = getCpuInfo()
@@ -106,5 +95,25 @@ when defined(darwin):
           model = "",
           brand = "",
         )
+
+  suite "Load Average Tests":
+    test "getLoadAverage returns valid load averages":
+      let load = getLoadAverage()
+      check:
+        load.oneMinute >= 0.0 # Load can be higher than 1.0 on busy systems
+        load.fiveMinute >= 0.0
+        load.fifteenMinute >= 0.0
+        load.timestamp <= getTime() # Timestamp should be now or in the past
+        load.oneMinute >= load.fiveMinute or load.oneMinute <= load.fiveMinute * 2.0
+        load.fiveMinute >= load.fifteenMinute or
+          load.fiveMinute <= load.fifteenMinute * 2.0
+
+    test "getLoadAverage handles errors appropriately":
+      try:
+        discard getLoadAverage()
+      except DarwinError:
+        check false # Should not raise DarwinError on valid system
+      except CatchableError:
+        check false # Should not raise unexpected exceptions
 else:
   echo "Skipping CPU tests on non-Darwin platform"

@@ -14,13 +14,20 @@ when defined(macosx):
         ("Intel" in info.brand) or ("Apple" in info.brand)
 
     test "CpuInfo string representation is formatted correctly":
-      let info =
-        CpuInfo(architecture: "arm64", model: "MacBookPro18,3", brand: "Apple M1 Pro")
+      let info = CpuInfo(
+        physicalCores: 8,
+        logicalCores: 8,
+        architecture: "arm64",
+        model: "MacBookPro18,3",
+        brand: "Apple M1 Pro"
+      )
       let str = $info
       check:
         str.contains("Architecture: arm64")
         str.contains("Model: MacBookPro18,3")
         str.contains("Brand: Apple M1 Pro")
+        str.contains("Physical Cores: 8")
+        str.contains("Logical Cores: 8")
 
 when isMainModule:
   when not defined(macosx):
