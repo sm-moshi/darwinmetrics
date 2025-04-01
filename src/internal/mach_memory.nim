@@ -1,12 +1,23 @@
 ## Memory management implementation for Darwin systems using unprivileged APIs.
 ##
-## This module provides memory statistics and pressure monitoring using sysctl
-## and task_info APIs that don't require elevated privileges.
+## This module provides memory statistics and pressure monitoring using `sysctl`
+## and `task_info` APIs that don't require elevated privileges.
+##
+## The module supports both Intel and Apple Silicon architectures, providing
+## accurate memory statistics through the Mach kernel interfaces.
+##
+## Example:
+##
+## .. code-block:: nim
+##   let memInfo = getTaskMemoryInfo()
+##   echo "Current process memory usage: ", memInfo.residentSize div 1024, "KB"
+##
+##   let stats = getMemoryStats()
+##   echo "System memory pressure: ", stats.pressureLevel
+##   echo "Available physical memory: ", stats.availablePhysical div (1024*1024), "MB"
 
 import std/posix
-import std/strformat
 import ./memory_types
-import ./darwin_errors
 import ./mach_stats
 
 {.passC: "-I/usr/include".}
@@ -23,6 +34,8 @@ import ./mach_stats
 
 type
   MachPort* = distinct uint32
+    ## Represents a Mach port, which is a fundamental primitive in the Mach kernel
+    ## for inter-process communication and resource management.
 
 {.pragma: mach_import, importc, nodecl.}
 
@@ -50,7 +63,18 @@ proc mach_host_self(): MachPort {.mach_import.}
 """.}
 
 proc getSystemPageSize*(): uint32 {.exportc: "getSystemPageSize", dynlib.} =
-  ## Get the system page size using sysctl
+  ## Retrieves the system memory page size.
+  ##
+  ## Returns the size of a memory page in bytes. This value is typically 4KB or 16KB
+  ## depending on the system architecture and configuration.
+  ##
+  ## Raises `MemoryError` if the system call fails.
+  ##
+  ## Example:
+  ##
+  ## .. code-block:: nim
+  ##   let pageSize = getSystemPageSize()
+  ##   echo "System page size: ", pageSize, " bytes"
   var pageSize: uint32
   var size = sizeof(pageSize).uint
   let mib = [SYSCTL_CTL_HW.cint, SYSCTL_HW_PAGESIZE.cint]
@@ -65,7 +89,23 @@ proc getSystemPageSize*(): uint32 {.exportc: "getSystemPageSize", dynlib.} =
   result = pageSize
 
 proc getMemoryPressureLevel*(): MemoryPressureLevel {.exportc: "getMemoryPressureLevel", dynlib.} =
-  ## Get the current memory pressure level using sysctl
+  ## Retrieves the current system memory pressure level.
+  ##
+  ## The memory pressure level indicates the system's current memory utilisation state:
+  ## * `mplNormal` - Normal memory utilisation
+  ## * `mplWarning` - Memory pressure is elevated
+  ## * `mplCritical` - System is under critical memory pressure
+  ##
+  ## Returns `mplNormal` if the pressure level cannot be determined.
+  ##
+  ## Example:
+  ##
+  ## .. code-block:: nim
+  ##   let pressure = getMemoryPressureLevel()
+  ##   case pressure
+  ##   of mplNormal: echo "Memory pressure is normal"
+  ##   of mplWarning: echo "Memory pressure is elevated"
+  ##   of mplCritical: echo "System is under critical memory pressure"
   var level: cint
   var size = sizeof(level).uint
 
@@ -80,7 +120,22 @@ proc getMemoryPressureLevel*(): MemoryPressureLevel {.exportc: "getMemoryPressur
   else: mplNormal
 
 proc getTaskMemoryInfo*(): TaskMemoryInfo {.exportc: "getTaskMemoryInfo", dynlib.} =
-  ## Get memory information for the current process
+  ## Retrieves memory usage information for the current process.
+  ##
+  ## Returns a `TaskMemoryInfo` object containing:
+  ## * `virtualSize` - Total virtual memory size
+  ## * `residentSize` - Current resident set size (physical memory used)
+  ## * `residentSizeMax` - Peak resident set size
+  ##
+  ## Raises `MemoryError` if the task info cannot be retrieved.
+  ##
+  ## Example:
+  ##
+  ## .. code-block:: nim
+  ##   let info = getTaskMemoryInfo()
+  ##   echo "Virtual size: ", info.virtualSize div (1024*1024), "MB"
+  ##   echo "Resident size: ", info.residentSize div (1024*1024), "MB"
+  ##   echo "Peak resident size: ", info.residentSizeMax div (1024*1024), "MB"
   var info: TaskBasicInfo64
   var count = uint32(sizeof(info) div sizeof(uint32))
   let task = mach_task_self()
@@ -98,7 +153,26 @@ proc getTaskMemoryInfo*(): TaskMemoryInfo {.exportc: "getTaskMemoryInfo", dynlib
   )
 
 proc getMemoryStats*(): MemoryStats {.exportc: "getMemoryStats", dynlib.} =
-  ## Get comprehensive memory statistics using unprivileged APIs
+  ## Retrieves comprehensive system memory statistics using unprivileged APIs.
+  ##
+  ## Returns a `MemoryStats` object containing:
+  ## * `totalPhysical` - Total physical memory in the system
+  ## * `availablePhysical` - Available physical memory
+  ## * `usedPhysical` - Used physical memory
+  ## * `pressureLevel` - Current memory pressure level
+  ## * `pageSize` - System memory page size
+  ## * Various page counts (free, active, inactive, wired, compressed)
+  ##
+  ## Raises `MemoryError` if memory statistics cannot be retrieved.
+  ##
+  ## Example:
+  ##
+  ## .. code-block:: nim
+  ##   let stats = getMemoryStats()
+  ##   echo "Total memory: ", stats.totalPhysical div (1024*1024*1024), "GB"
+  ##   echo "Available: ", stats.availablePhysical div (1024*1024), "MB"
+  ##   echo "Used: ", stats.usedPhysical div (1024*1024), "MB"
+  ##   echo "Pressure level: ", stats.pressureLevel
   var memSize: uint64
   var size = sizeof(memSize).uint
   let mib = [SYSCTL_CTL_HW.cint, SYSCTL_HW_MEMSIZE.cint]
