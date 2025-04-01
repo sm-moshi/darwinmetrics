@@ -32,3 +32,25 @@ task coverage, "Generate coverage reports":
   --define:coverage
   exec "nim c -r tests/test_all"
 
+task format, "Format code using nimpretty":
+  exec "nimpretty src/*.nim"
+  exec "nimpretty tests/*.nim"
+
+task check, "Run static analysis":
+  exec "nim check --hints:on --warnings:on src/darwinmetrics.nim"
+
+task tsan, "Run with ThreadSanitizer":
+  --threads:on
+  --tlsEmulation:off
+  --gc:orc
+  --debugger:native
+  --passC:"-fsanitize=thread"
+  --passL:"-fsanitize=thread"
+  --passL:"-framework IOKit"
+  --passL:"-framework CoreFoundation"
+  exec "nim c -r tests/tsan_test.nim"
+
+task ci, "Run CI tasks":
+  exec "nimble check"
+  exec "nimble test"
+  exec "nimble format"
