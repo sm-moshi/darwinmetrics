@@ -24,7 +24,8 @@ jobs:
       - name: Setup Nim
         run: |
           curl https://nim-lang.org/choosenim/init.sh -sSf | sh -s -- -y
-          export PATH=$HOME/.nimble/bin:$PATH
+          echo "export PATH=$HOME/.nimble/bin:\$PATH" >> $HOME/.bash_profile
+          source $HOME/.bash_profile
           nimble refresh
 
       - name: Cache Nimble packages
