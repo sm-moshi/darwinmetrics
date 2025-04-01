@@ -1,32 +1,36 @@
 # Package
 
-version       = "0.0.5"
+version       = "0.0.6"
 author        = "Stuart Meya"
 description   = "System metrics library for macOS (Darwin) written in pure Nim — CPU, memory, disk, processes, and more."
 license       = "MIT"
 srcDir        = "src"
-binDir        = "bin"
 
 # Package Type
 backend       = "c"
 installExt    = @["nim"]
 
 # Dependencies
-
 requires "nim >= 2.2.2"
-requires "weave >= 0.4.0"
+
+# Optional Dependencies
+when defined(threads) and defined(test):
+  requires "weave >= 0.4.0"
 
 # Modules to install
 installDirs = @["doctools"]
 
 # Binaries to build
-bin = @["doctools/docsync_cli=docsync"]
+bin = @[
+  "doctools/docsync_cli=docsync"  # Documentation sync tool
+]
 
 # Tasks
 
 task test, "Run all tests":
   # Set compilation flags
-  switch("threads", "on")
+  when not defined(noThreads):
+    switch("threads", "on")
   switch("tlsEmulation", "off")
   switch("gc", "orc")
   switch("passL", "-framework IOKit")
@@ -35,6 +39,7 @@ task test, "Run all tests":
   switch("passL", "-framework CoreServices")
   switch("passL", "-framework DiskArbitration")
   switch("passL", "-framework SystemConfiguration")
+  switch("define", "test")
 
   # Run tests
   exec "nim c -r tests/test_all.nim"
@@ -44,6 +49,8 @@ task test, "Run all tests":
     exec "nim c -r tests/test_cpu.nim"
   if fileExists("tests/test_system_cpu.nim"):
     exec "nim c -r tests/test_system_cpu.nim"
+  if fileExists("tests/test_memory.nim"):
+    exec "nim c -r tests/test_memory.nim"
 
 task coverage, "Generate coverage reports":
   switch("threads", "on")

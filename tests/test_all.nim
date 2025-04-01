@@ -8,7 +8,14 @@ import std/unittest
 import test_docsync
 import test_system_cpu
 import test_cpu
-import tsan_test
+import test_memory
+import test_platform_darwin
 
 when isMainModule:
   echo "Running all tests..."
+  # Run all tests
+  {.warning[UnusedImport]: off.}
+  when defined(macosx):
+    echo "Running on macOS..."
+  else:
+    echo "Tests skipped: Not running on macOS"

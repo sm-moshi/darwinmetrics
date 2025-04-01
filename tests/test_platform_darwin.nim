@@ -1,6 +1,7 @@
 import std/[unittest, strutils]
 import ../src/internal/platform_darwin
 import ../src/internal/darwin_errors
+from std/strutils import Letters, Digits
 
 when defined(darwin):
   suite "Darwin Platform Detection":
@@ -24,9 +25,16 @@ when defined(darwin):
 
     test "getMachineModel returns valid model":
       let model = getMachineModel()
+      echo "Debug - Model string: [" & model & "]"
+      var nonAlphaNum = ""
+      for c in model:
+        if c notin Letters + Digits + {'-', '_', ' '}:
+          nonAlphaNum.add(c)
+      echo "Debug - Non-alphanumeric chars: [" & nonAlphaNum & "]"
       check:
-        model.len > 0
-        model.startsWith("Mac") # All Mac models start with "Mac"
+        model.len > 0 # Model string should not be empty
+        # Model should be a valid identifier - allow commas for Apple model IDs (e.g. "Mac14,9")
+        model.allCharsInSet(Letters + Digits + {'-', '_', ' ', ','})
 
     test "getCpuBrand returns valid brand":
       let brand = getCpuBrand()

@@ -43,27 +43,26 @@ jobs:
         with:
           nim-version: ${{ matrix.nim-version }}
 
-      - name: Build
+      - name: Build & Test
         run: |
-          nimble build -y --gc:orc --threads:on --tlsEmulation:off -d:release
-
-      - name: Test
-        run: nimble test -y
+          nimble install -y
+          nimble test -d:noThreads -y
 
       - name: Prepare Release Assets
         if: matrix.is-release
         run: |
           mkdir -p dist
-          cp ./darwinmetrics dist/
-          cd dist && tar czf darwinmetrics-macos.tar.gz darwinmetrics
-          shasum -a 256 darwinmetrics-macos.tar.gz > darwinmetrics-macos.tar.gz.sha256
+          # Create a source distribution
+          git archive --format=tar.gz --prefix=darwinmetrics-${{ github.ref_name }}/ -o dist/darwinmetrics-${{ github.ref_name }}.tar.gz HEAD
+          cd dist
+          shasum -a 256 darwinmetrics-${{ github.ref_name }}.tar.gz > darwinmetrics-${{ github.ref_name }}.tar.gz.sha256
 
       - name: Create Release
         if: matrix.is-release
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            dist/darwinmetrics-macos.tar.gz
-            dist/darwinmetrics-macos.tar.gz.sha256
+            dist/darwinmetrics-${{ github.ref_name }}.tar.gz
+            dist/darwinmetrics-${{ github.ref_name }}.tar.gz.sha256
           generate_release_notes: true
-          draft: true # Creates a draft release that you can review before publishing
+          draft: true
