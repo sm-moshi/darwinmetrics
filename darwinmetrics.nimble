@@ -1,6 +1,6 @@
 # Package
 
-version       = "0.0.6"
+version       = "0.0.7"
 author        = "Stuart Meya"
 description   = "System metrics library for macOS (Darwin) written in pure Nim — CPU, memory, disk, processes, and more."
 license       = "MIT"
@@ -51,6 +51,8 @@ task test, "Run all tests":
     exec "nim c -r tests/test_system_cpu.nim"
   if fileExists("tests/test_memory.nim"):
     exec "nim c -r tests/test_memory.nim"
+  if fileExists("tests/test_power.nim"):
+    exec "nim c -r tests/test_power.nim"
 
 task coverage, "Generate coverage reports":
   switch("threads", "on")
@@ -72,21 +74,13 @@ task check, "Run static analysis":
   exec "nim check --hints:on --warnings:on src/doctools/docsync_cli.nim"
 
 task tsan, "Run with ThreadSanitizer":
-  switch("threads", "on")
-  switch("tlsEmulation", "off")
-  switch("gc", "orc")
-  switch("debugger", "native")
-  switch("passC", "-fsanitize=thread")
-  switch("passL", "-fsanitize=thread")
-  switch("passL", "-framework IOKit")
-  switch("passL", "-framework CoreFoundation")
-  switch("path", ".")
-  exec "nim c -r tests/tsan_test.nim"
+  # Run the test with thread sanitizer enabled
+  exec "CFLAGS='-fsanitize=thread' LDFLAGS='-fsanitize=thread -framework IOKit -framework CoreFoundation' nim c --threads:on --tlsEmulation:off --mm:orc --debugger:native -r tests/tsan_test.nim"
 
 task ci, "Run CI tasks":
   exec "nimble check"
-  exec "nimble test"
   exec "nimble format"
+  exec "nimble test"
 
 task docs, "Sync documentation between docs/ and .jekyll/_docs/":
   # Ensure docsync is built
