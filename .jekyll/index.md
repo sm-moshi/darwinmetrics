@@ -6,9 +6,9 @@ permalink: /index.html
 
 <div class="badges">
 <a href="https://github.com/sm-moshi/darwinmetrics">
-  <img src="https://img.shields.io/badge/nimble-main-green" alt="nimble">
+  <img src="https://img.shields.io/badge/nimble-develop-orange" alt="nimble">
 </a>
-<a href="https://github.com/sm-moshi/darwinmetrics/actions/workflows/build.yml"><img src="https://github.com/sm-moshi/darwinmetrics/actions/workflows/build.yml/badge.svg?branch=main" alt="Build Status"></a>
+<a href="https://github.com/sm-moshi/darwinmetrics/actions/workflows/build.yml"><img src="https://github.com/sm-moshi/darwinmetrics/actions/workflows/build.yml/badge.svg?branch=develop" alt="Build Status"></a>
 <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
 <a href="#">
   <img src="https://img.shields.io/badge/platform-macOS%20(Darwin)-lightblue.svg" alt="Platform: macOS">
