@@ -40,10 +40,10 @@ This document outlines the planned implementation steps for the `darwinmetrics` 
 
 ## 💾 Memory Module (`system/memory.nim`)
 
-- [ ] Read total, used, and available RAM
-- [ ] Track swap usage
-- [ ] Retrieve memory pressure (if available)
-- [ ] Export summary struct for reporting
+- [x] Read total, used, and available RAM
+- [x] Track swap usage
+- [x] Retrieve memory pressure (if available)
+- [x] Export summary struct for reporting
 
 ---
 

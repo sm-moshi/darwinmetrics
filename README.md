@@ -18,8 +18,8 @@
   - [x] Per-core usage stats
   - [x] Frequency info
   - [x] Thread-safe, async-compatible
-- [ ] 💾 Memory:
-  - [ ] RAM and swap statistics
+- [x] 💾 Memory:
+  - [x] RAM and swap statistics
 - [ ] 🔋 Power:
   - [ ] Battery state, charging status, health, time estimate
 - [ ] 🌡️ Temperature:

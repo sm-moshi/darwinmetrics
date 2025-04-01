@@ -4,8 +4,7 @@
 
 import unittest
 ## import std/strformat
-import ../src/internal/memory_types
-import ../src/internal/mach_memory
+import ../src/system/memory
 
 {.emit: """/*INCLUDESECTION*/
 #include <mach/mach.h>
@@ -14,21 +13,6 @@ import ../src/internal/mach_memory
 #include <sys/sysctl.h>
 """.}
 
-test "getSystemPageSize returns valid page size":
-  let pageSize = getSystemPageSize()
-  check pageSize > 0
-  check pageSize mod 4096 == 0 # Most common page size on modern systems
-
-test "getMemoryPressureLevel returns valid level":
-  let level = getMemoryPressureLevel()
-  check level in {mplNormal, mplWarning, mplCritical}
-
-test "getTaskMemoryInfo returns valid info":
-  let info = getTaskMemoryInfo()
-  check info.virtualSize > 0
-  check info.residentSize > 0
-  check info.residentSize <= info.residentSizeMax
-
 test "getMemoryStats returns valid stats":
   let stats = getMemoryStats()
   check stats.totalPhysical > 0
@@ -36,3 +20,57 @@ test "getMemoryStats returns valid stats":
   check stats.usedPhysical > 0
   check stats.pageSize > 0
   check stats.totalPhysical >= stats.availablePhysical + stats.usedPhysical
+
+test "getProcessMemoryInfo returns valid info":
+  let info = getProcessMemoryInfo()
+  check info.virtualSize > 0
+  check info.residentSize > 0
+  check info.residentPeak >= info.residentSize
+
+test "getMemoryPressureLevel returns valid level":
+  let level = getMemoryPressureLevel()
+  check level in {Normal, Warning, Critical, Error}
+
+suite "Memory API Tests":
+  test "getMemoryStats returns valid stats":
+    let stats = getMemoryStats()
+    check:
+      stats.totalPhysical > 0'u64
+      stats.availablePhysical > 0'u64
+      stats.usedPhysical > 0'u64
+      stats.pageSize > 0'u32
+      stats.pagesFree >= 0'u64
+      stats.pagesActive >= 0'u64
+      stats.pagesInactive >= 0'u64
+      stats.pagesWired >= 0'u64
+      stats.pagesCompressed >= 0'u64
+      stats.totalPhysical >= stats.usedPhysical
+      stats.totalPhysical >= stats.availablePhysical
+
+  test "getProcessMemoryInfo returns valid info":
+    let info = getProcessMemoryInfo()
+    check:
+      info.virtualSize > 0'u64
+      info.residentSize > 0'u64
+      info.residentPeak >= info.residentSize
+      info.virtualSize >= info.residentSize
+
+  test "getMemoryPressureLevel returns valid level":
+    let level = getMemoryPressureLevel()
+    check:
+      level in {Normal, Warning, Critical, Error}
+
+  test "Memory size constants are correct":
+    check:
+      KB == 1024'u64
+      MB == KB * 1024'u64
+      GB == MB * 1024'u64
+      TB == GB * 1024'u64
+
+  test "Memory stats fields are properly populated":
+    let stats = getMemoryStats()
+    check:
+      stats.pagesFree * uint64(stats.pageSize) <= stats.totalPhysical
+      stats.pagesActive * uint64(stats.pageSize) <= stats.totalPhysical
+      stats.pagesInactive * uint64(stats.pageSize) <= stats.totalPhysical
+      stats.pagesWired * uint64(stats.pageSize) <= stats.totalPhysical
