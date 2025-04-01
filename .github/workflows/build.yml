@@ -16,14 +16,14 @@ jobs:
     strategy:
       matrix:
         nim-version: ["2.2.2"]
-      fail-fast: true
+      fail-fast: false
 
     steps:
       - uses: actions/checkout@v4
 
       - name: Setup Nim
         run: |
-          curl https://nim-lang.org/choosenim/init.sh -sSf | sh
+          curl https://nim-lang.org/choosenim/init.sh -sSf | sh -s -- -y
           export PATH=$HOME/.nimble/bin:$PATH
           nimble refresh
 
@@ -31,7 +31,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.nimble
-          key: ${{ runner.os }}-nimble-${{ hashFiles('darwinmetrics.nimble') }}
+          key: ${{ runner.os }}-nimble-${{ hashFiles('*.nimble') }}
           restore-keys: ${{ runner.os }}-nimble-
 
       - name: Build
