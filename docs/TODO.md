@@ -9,7 +9,7 @@ This document outlines the planned implementation steps for the `darwinmetrics` 
 - [x] Initialise `nimble` package: `darwinmetrics`
 - [x] Setup `src/` and `tests/` structure
 - [x] Add basic public API in `src/darwinmetrics.nim`
-- [~] Setup GitHub Actions CI with `nimble test`
+- [x] Setup GitHub Actions CI with `nimble test`
 - [x] Add README with badges and usage instructions
 - [x] Add LICENSE (MIT)
 - [x] Add `.editorconfig` and `.gitignore`
@@ -19,8 +19,8 @@ This document outlines the planned implementation steps for the `darwinmetrics` 
 
 ## 🧠 Architecture
 
-- [ ] Detect CPU architecture (`arm64`, `x86_64`)
-- [ ] Create internal module for platform detection
+- [x] Detect CPU architecture (`arm64`, `x86_64`)
+- [x] Create internal module for platform detection
 - [ ] Document Darwin version requirements
 - [ ] Support cross-compilation config for future tooling
 

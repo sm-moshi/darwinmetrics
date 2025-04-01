@@ -1,6 +1,6 @@
 # Package
 
-version       = "0.0.1"
+version       = "0.0.2"
 author        = "Stuart Meya"
 description   = "System metrics library for macOS (Darwin) written in pure Nim — CPU, memory, disk, processes, and more."
 license       = "MIT"
@@ -48,6 +48,7 @@ task tsan, "Run with ThreadSanitizer":
   --passL:"-fsanitize=thread"
   --passL:"-framework IOKit"
   --passL:"-framework CoreFoundation"
+  --path:"."
   exec "nim c -r tests/tsan_test.nim"
 
 task ci, "Run CI tasks":

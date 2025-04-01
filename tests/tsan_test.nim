@@ -1,30 +1,43 @@
 ## ThreadSanitizer Test
 ##
-## This basic test uses threads to verify ThreadSanitizer detection works properly.
+## This basic test uses Nim's built-in threading to verify ThreadSanitizer detection.
 
-import std/[threadpool]
+import std/[locks, atomics, os]
+
+type SharedData = object
+  lock: Lock
+  counter: Atomic[int]
+
+proc workerThread(data: ptr SharedData) {.thread.} =
+  ## Worker thread that increments the counter
+  for i in 1 .. 5:
+    # Atomic increment without lock (safe)
+    discard data.counter.fetchAdd(1)
+
+    # Intentionally add a small delay
+    sleep(10)
+
+    # Use lock for demonstration (though not strictly needed here)
+    withLock data.lock:
+      echo "Thread increment: ", data.counter.load
 
 proc main() =
-  ## A simple demonstration of thread usage
-  let input = @[1, 2, 3, 4, 5]
-  var flowVars: seq[FlowVar[int]] = @[]
+  var data: SharedData
+  data.counter.store(0)
+  initLock(data.lock)
 
-  # Create a small job that processes each element
-  for i in input:
-    # Start parallel job and collect FlowVar result
-    flowVars.add spawn (proc (x: int): int =
-      # Some "work"
-      result = x * 2
-    )(i)
+  # Create and start threads
+  var threads: array[2, Thread[ptr SharedData]]
+  for i in 0 .. threads.high:
+    createThread(threads[i], workerThread, addr data)
 
-  # Wait for all jobs to complete
-  sync()
+  # Wait for threads to complete
+  joinThreads(threads)
 
-  # Collect results (optional - sync() already waited for completion)
-  for fv in flowVars:
-    let value = ^fv # Retrieve the value from the FlowVar
-    echo "Result: ", value
+  # Clean up
+  deinitLock(data.lock)
 
+  echo "Final counter value: ", data.counter.load
   echo "ThreadSanitizer test completed successfully"
 
 when isMainModule:

@@ -10,8 +10,8 @@ This document defines the long-term development goals and phased milestones for 
 
 - [x] Initialise `nimble` project and structure
 - [x] Create public API scaffold (`src/darwinmetrics.nim`)
-- [ ] Implement architecture detection
-- [ ] Stub core metric modules (CPU, Memory, Power, Disk, Network, Process)
+- [x] Implement architecture detection
+- [x] Stub core metric modules (CPU, Memory, Power, Disk, Network, Process)
 - [x] Setup LSP, formatter (`nph`, `nimpretty`)
 - [x] Setup GitHub Actions CI
 
