@@ -50,10 +50,6 @@ jobs:
       - name: Test
         run: nimble test -y
 
-      - name: Coverage
-        if: matrix.nim-version == '2.2.2'
-        run: nimble coverage
-
       - name: Prepare Release Assets
         if: matrix.is-release
         run: |
