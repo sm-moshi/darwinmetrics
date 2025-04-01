@@ -25,6 +25,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Improved documentation and examples
 - Enhanced error handling in memory operations
 - Improved type safety across memory management
+- Enhanced CPU module documentation:
+  - Added comprehensive examples and usage patterns
+  - Improved type descriptions and field documentation
+  - Added platform-specific notes for Apple Silicon/Intel
+  - Matched documentation style with memory module
+  - Added clear separation between low-level and high-level interfaces
 
 ## [0.0.5] - 2024-04-01
 

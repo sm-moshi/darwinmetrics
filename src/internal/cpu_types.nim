@@ -1,39 +1,67 @@
-## CPU types module for Darwin
+## CPU types module for Darwin systems.
 ##
 ## This module defines the core types used for CPU metrics in Darwin-based systems.
-## These types provide a clean abstraction over the low-level Mach kernel structures.
+## It provides type definitions that map to Mach kernel structures and constants
+## for CPU statistics, load averages, and frequency information.
+##
+## The types support both Intel and Apple Silicon architectures, ensuring
+## consistent CPU metrics across platforms.
+##
+## Example:
+##
+## .. code-block:: nim
+##   # Create CPU information object
+##   var info = CpuInfo()
+##
+##   # CPU frequencies can be checked
+##   if info.frequency.current.isSome:
+##     echo "Current CPU frequency: ", info.frequency.current.get(), " MHz"
+##
+##   # Load averages can be monitored
+##   let load = LoadAverage()
+##   echo "1-minute load: ", load.oneMinute
 
 import std/[options, times, deques, locks]
 
-type CpuUsage* = object        ## CPU usage information
-  user*: float                ## Percentage of time spent in user mode (0-100)
-  system*: float              ## Percentage of time spent in system mode (0-100)
-  idle*: float                ## Percentage of time spent idle (0-100)
-  nice*: float                ## Percentage of time spent in nice priority (0-100)
-  total*: float               ## Total CPU usage percentage (0-100)
+type
+  CpuUsage* = object
+    ## CPU usage percentages across different states.
+    ## All values are percentages between 0-100.
+    user*: float                ## Time spent executing user code
+    system*: float             ## Time spent in kernel/system calls
+    idle*: float               ## Time CPU was idle
+    nice*: float               ## Time spent running niced processes
+    total*: float              ## Total CPU utilisation (user + system + nice)
 
-type CpuFrequency* = object    ## CPU frequency information
-  nominal*: float             ## Nominal (base) frequency in MHz
-  current*: Option[float]     ## Current frequency in MHz (if available)
-  max*: Option[float]         ## Maximum frequency in MHz (if available)
-  min*: Option[float]         ## Minimum frequency in MHz (if available)
+  CpuFrequency* = object
+    ## CPU frequency information in MHz.
+    ## Note: Current frequency may not be available in user mode on macOS.
+    nominal*: float             ## Base/nominal frequency
+    current*: Option[float]     ## Current operating frequency if available
+    max*: Option[float]         ## Maximum turbo frequency if available
+    min*: Option[float]         ## Minimum frequency if available
 
-type CpuInfo* = object         ## CPU information structure
-  physicalCores*: int          ## Number of physical CPU cores
-  logicalCores*: int           ## Number of logical CPU cores (including hyperthreading)
-  architecture*: string        ## CPU architecture (e.g., "arm64" or "x86_64")
-  model*: string              ## Machine model identifier
-  brand*: string              ## CPU brand string
-  frequency*: CpuFrequency    ## CPU frequency information
-  usage*: CpuUsage            ## Current CPU usage information
+  CpuInfo* = object
+    ## Comprehensive CPU information structure combining
+    ## static information and dynamic metrics.
+    physicalCores*: int         ## Number of physical CPU cores
+    logicalCores*: int          ## Logical cores (including SMT/hyperthreading)
+    architecture*: string       ## CPU architecture ("arm64" or "x86_64")
+    model*: string             ## Machine model identifier (e.g., "MacBookPro18,2")
+    brand*: string             ## CPU brand string (e.g., "Apple M1 Pro")
+    frequency*: CpuFrequency    ## Frequency information
+    usage*: CpuUsage           ## Current CPU utilisation
 
-type LoadAverage* = object ## System load average information
-  oneMinute*: float        ## 1-minute load average
-  fiveMinute*: float       ## 5-minute load average
-  fifteenMinute*: float    ## 15-minute load average
-  timestamp*: Time         ## When this measurement was taken
+  LoadAverage* = object
+    ## System load average information representing
+    ## the number of processes in the run queue.
+    oneMinute*: float          ## Average over past 1 minute
+    fiveMinute*: float         ## Average over past 5 minutes
+    fifteenMinute*: float      ## Average over past 15 minutes
+    timestamp*: Time           ## When this measurement was taken
 
-type LoadHistory* = ref object     ## Historical load average tracking
-  samples*: Deque[LoadAverage]    ## Load average samples
-  maxSamples*: int               ## Maximum number of samples to keep
-  lock*: Lock                    ## Lock for thread-safe access
+  LoadHistory* = ref object
+    ## Thread-safe container for tracking historical load averages
+    samples*: Deque[LoadAverage]    ## Historical load measurements
+    maxSamples*: int               ## Maximum samples to retain
+    lock*: Lock                    ## Mutex for thread-safe access

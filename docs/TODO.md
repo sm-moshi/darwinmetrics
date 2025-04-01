@@ -35,6 +35,17 @@ This document outlines the planned implementation steps for the `darwinmetrics` 
 - [x] Detect current and max frequency
 - [x] Async update interface
 - [x] Unit tests with mocked values
+- [x] Initialize basic CPU metrics
+- [x] Add CPU frequency detection
+- [x] Add load average tracking
+- [x] Add per-core statistics
+- [x] Add CPU architecture validation
+- [x] Refactor CPU types into separate modules
+- [x] Add comprehensive documentation and examples
+- [ ] Add async sampling support
+- [ ] Add CPU temperature monitoring (if available)
+- [ ] Add power consumption metrics (via powermetrics)
+- [ ] Support cross-compilation for different Darwin versions
 
 ---
 
