@@ -30,8 +30,11 @@ This document defines the long-term development goals and phased milestones for 
 - [x] Memory:
   - [x] RAM + Swap
   - [x] Pressure (if available)
-- [ ] Power:
-  - [ ] Battery state, charge, time remaining
+- [x] Power:
+  - [x] Battery state, charge, time remaining
+  - [x] Power source detection
+  - [x] Thermal pressure monitoring
+  - [x] Battery health information
 
 ---
 

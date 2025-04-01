@@ -9,6 +9,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.7] - 2024-04-01 🔋
+
+### ✨ Added
+
+- Comprehensive power monitoring module:
+  - Battery status and charge level detection
+  - Power source identification (AC/battery/UPS)
+  - Remaining time and battery health metrics
+  - Thermal pressure level detection
+  - Low power mode information
+  - Time remaining and time to full charge estimates
+  - Battery cycle count and condition reporting
+  - Clean public API with full documentation
+- Enhanced testing:
+  - Stress testing for stability
+  - Logical consistency validation
+  - Data format validation
+  - Cross-check testing between different metrics
+
+### 🔄 Changed
+
+- Improved IOKit and CoreFoundation bindings
+- Enhanced error handling for battery-related operations
+- Added safer memory management for C types
+
 ## [0.0.6] - 2024-04-01 🧠
 
 ### ✨ Added

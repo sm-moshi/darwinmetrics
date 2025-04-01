@@ -93,11 +93,11 @@ This document outlines the planned implementation steps for the `darwinmetrics` 
 
 ## 🔋 Power Module (`system/power.nim`)
 
-- [ ] Detect battery status and level
-- [ ] Get charging state and health
-- [ ] Estimate time remaining or time to full
-- [ ] Track AC vs battery power source
-- [ ] Expose thermal pressure (if supported)
+- [x] Detect battery status and level
+- [x] Get charging state and health
+- [x] Estimate time remaining or time to full
+- [x] Track AC vs battery power source
+- [x] Expose thermal pressure (if supported)
 
 ---
 

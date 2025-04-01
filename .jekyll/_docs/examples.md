@@ -93,6 +93,83 @@ echo "  Received: ", netInfo.bytesReceived div 1024, " KB"
 echo "  Sent: ", netInfo.bytesSent div 1024, " KB"
 ```
 
+### Power Monitoring
+
+```nim
+import darwinmetrics
+
+# Get comprehensive power information
+let powerInfo = getPowerInfo()
+
+if powerInfo.isPresent:
+  echo "Battery Status:"
+  echo "  Level: ", powerInfo.percentRemaining, "%"
+  echo "  Status: ", powerInfo.status
+  echo "  Source: ", powerInfo.source
+
+  if powerInfo.timeRemaining.isSome():
+    let mins = powerInfo.timeRemaining.get()
+    echo "  Time remaining: ", mins div 60, "h ", mins mod 60, "m"
+
+  if powerInfo.health.isSome():
+    let health = powerInfo.health.get()
+    echo "  Health:"
+    echo "    Cycle count: ", health.cycleCount
+    echo "    Condition: ", health.condition
+    echo "    Capacity: ", (health.currentCapacity.float / health.designCapacity.float) * 100, "%"
+else:
+  echo "No battery present - running on AC power"
+
+# Quick battery percentage check
+let percent = getBatteryPercentage()
+echo "Battery at ", percent, "%"
+
+# Check power source
+if isPowerAdapterConnected():
+  echo "Connected to power adapter"
+else:
+  echo "Running on battery power"
+
+# Monitor thermal pressure
+let thermal = getThermalPressureLevel()
+echo "Thermal pressure: ", thermal
+```
+
+### Continuous Power Monitoring
+
+```nim
+import darwinmetrics
+import asyncdispatch
+import times
+
+proc monitorPower() {.async.} =
+  while true:
+    let power = getPowerInfo()
+    echo "=== Power Status ==="
+
+    if power.isPresent:
+      echo "Battery: ", power.percentRemaining, "%"
+      case power.status
+      of PowerStatus.Charging:
+        if power.timeToFull.isSome():
+          echo "Charging - ", power.timeToFull.get(), " minutes to full"
+      of PowerStatus.Discharging:
+        if power.timeRemaining.isSome():
+          echo "On battery - ", power.timeRemaining.get(), " minutes remaining"
+      of PowerStatus.Full:
+        echo "Fully charged"
+      else:
+        echo "Status: ", power.status
+
+      echo "Thermal state: ", power.thermalPressure
+    else:
+      echo "No battery - running on AC power"
+
+    await sleepAsync(5000) # Update every 5 seconds
+
+waitFor monitorPower()
+```
+
 ## Error Handling
 
 ```nim
@@ -123,4 +200,4 @@ const SampleInterval = 5.0 # Sample every 5 seconds
 
 ## Additional Examples
 
-For more examples and advanced usage scenarios, check out our [GitHub repository](https://github.com/yourusername/darwinmetrics/examples).
+For more examples and advanced usage scenarios, check out our [GitHub repository](https://github.com/sm-moshi/darwinmetrics/examples).
