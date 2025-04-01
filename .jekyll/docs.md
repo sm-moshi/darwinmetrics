@@ -4,8 +4,6 @@ title: 📖 Documentation
 permalink: /docs/
 ---
 
-# Documentation
-
 Welcome to the darwinmetrics documentation. Here you'll find comprehensive guides and documentation to help you start working with darwinmetrics as quickly as possible.
 
 ## Contents

@@ -23,9 +23,10 @@ This document outlines the planned implementation steps for the `darwinmetrics` 
 
 ## 🧠 Architecture
 
-- [ ] Detect CPU architecture (`arm64`, `x86_64`)
-- [ ] Create internal module for platform detection
-- [ ] Document Darwin version requirements
+- [x] Detect CPU architecture (`arm64`, `x86_64`)
+- [x] Create internal module for platform detection
+- [x] Document Darwin version requirements (macOS 12.0+)
+- [x] Implement version checks and validation
 - [ ] Support cross-compilation config for future tooling
 
 ---
@@ -140,9 +141,9 @@ This document outlines the planned implementation steps for the `darwinmetrics` 
 
 ## 🧹 Dev & Tooling
 
-- [ ] Setup formatter (`nimpretty` + `nph`)
-- [ ] Setup static analysis (`nim check`)
-- [ ] Ensure ThreadSanitizer compatibility
+- [x] Setup formatter (`nimpretty` + `nph`)
+- [x] Setup static analysis (`nim check`)
+- [x] Ensure ThreadSanitizer compatibility
 - [ ] Add Makefile or task runner (optional)
 - [ ] Enable version pinning via `nimble.lock`
 

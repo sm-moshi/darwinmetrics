@@ -4,8 +4,6 @@ title: 🔌 API Reference
 permalink: /docs/api/
 ---
 
-# API Reference
-
 ## Core Functions
 
 ### CPU Information

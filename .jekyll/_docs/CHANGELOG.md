@@ -4,11 +4,46 @@ title: 📝 Changelog
 permalink: /docs/changelog/
 ---
 
-
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [0.0.3] - 2024-04-01
+
+### Added
+
+- Platform detection module with Darwin version validation
+- Minimum macOS version requirement set to 12.0+ (Darwin 21.0+)
+- Comprehensive test suite for platform detection
+
+### Changed
+
+- Updated platform requirements in documentation
+- Enhanced error handling for version checks
+
+### Fixed
+
+- None
+
+## [0.0.2] - 2024-04-01
+
+### Added
+
+- Development tooling and tasks:
+  - Formatter (nimpretty) task
+  - Static analysis task
+  - ThreadSanitizer compatibility and test
+  - CI task runner
+- Platform detection features:
+  - Darwin architecture detection (arm64/x86_64)
+  - Version validation and requirements
+  - Comprehensive test coverage
+
+### Changed
+
+- Updated development workflow with new tasks
+- Enhanced platform compatibility checks
 
 ## [0.0.1] - 2024-04-01
 
@@ -38,14 +73,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Known Issues
 
 - All metric modules return placeholder messages
-- Architecture detection not implemented yet
 - Test coverage incomplete
 
 ## [Unreleased]
 
 ### Planned
 
-- Implement architecture detection
 - Add real metric collection for all modules
 - Complete test coverage
 - Add async sampling support

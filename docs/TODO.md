@@ -21,7 +21,8 @@ This document outlines the planned implementation steps for the `darwinmetrics` 
 
 - [x] Detect CPU architecture (`arm64`, `x86_64`)
 - [x] Create internal module for platform detection
-- [ ] Document Darwin version requirements
+- [x] Document Darwin version requirements (macOS 12.0+)
+- [x] Implement version checks and validation
 - [ ] Support cross-compilation config for future tooling
 
 ---
