@@ -18,7 +18,7 @@
 ## import darwinmetrics/system/cpu
 ##
 ## # Get detailed CPU information
-## let info = getCpuInfo()
+## let info = getCpuMetrics()
 ## echo "CPU: ", info.brand
 ## echo "Architecture: ", info.architecture
 ## echo "Physical cores: ", info.physicalCores
@@ -31,14 +31,16 @@
 ##
 ## # Track load averages
 ## let history = newLoadHistory()
-## let load = await getLoadAverageAsync()
+## let load = await getLoadAverage()
 ## echo "1-minute load: ", load.oneMinute
 ## ```
 ##
 ## Note: Some features like current CPU frequency are not available in user mode
 ## on macOS. Use powermetrics (requires root) for real-time frequency data.
 
-import std/[strformat, strutils, options, times, deques, asyncdispatch, locks]
+import std/[strformat, strutils, options, times, deques, locks]
+import pkg/chronos
+import pkg/chronos/timer
 import ../internal/[platform_darwin, cpu_types, darwin_errors]
 from ../internal/mach_stats import
   HostCpuLoadInfo, HostLoadInfo, KERN_SUCCESS, LOAD_SCALE, PROCESSOR_CPU_LOAD_INFO,
@@ -48,40 +50,54 @@ export cpu_types
 
 const DefaultMaxSamples = 60 # Keep 1 hour of samples at 1-minute intervals
 
-proc validateCpuInfo*(info: CpuInfo) =
-  ## Validates CPU information, raising DarwinError for invalid fields
-  if info.physicalCores <= 0:
+type
+  LoadHistory* = ref object
+    ## Tracks CPU load average history
+    samples: Deque[LoadAverage]
+    maxSamples: int
+    lock: Lock
+
+proc maxSamples*(history: LoadHistory): int =
+  ## Returns the maximum number of samples that can be stored in the history
+  ## Thread-safe: Yes
+  withLock history.lock:
+    result = history.maxSamples
+
+proc validateCpuMetrics*(metrics: CpuMetrics) =
+  ## Validates CPU metrics, raising DarwinError for invalid fields
+  if metrics.physicalCores <= 0:
     raise newException(DarwinError, "Invalid physical core count")
-  if info.logicalCores <= 0:
+  if metrics.logicalCores <= 0:
     raise newException(DarwinError, "Invalid logical core count")
-  if info.architecture.len == 0:
+  if metrics.architecture.len == 0:
     raise newException(DarwinError, "Missing CPU architecture")
-  if info.architecture notin ["arm64", "x86_64"]:
-    raise newException(DarwinError, "Invalid CPU architecture: " & info.architecture)
-  if info.model.len == 0:
+  if metrics.architecture notin ["arm64", "x86_64"]:
+    raise newException(DarwinError, "Invalid CPU architecture: " & metrics.architecture)
+  if metrics.model.len == 0:
     raise newException(DarwinError, "Missing machine model")
-  if info.brand.len == 0:
+  if metrics.brand.len == 0:
     raise newException(DarwinError, "Missing CPU brand")
 
-proc newCpuInfo*(
+proc newCpuMetrics*(
     physicalCores: int,
     logicalCores: int,
     architecture: string,
     model: string,
     brand: string,
     frequency: CpuFrequency,
-): CpuInfo =
-  ## Creates a new CpuInfo instance with validation
+): CpuMetrics =
+  ## Creates a new CpuMetrics instance with validation
   ## Raises DarwinError if any fields are invalid
-  result = CpuInfo(
+  result = CpuMetrics(
     physicalCores: physicalCores,
     logicalCores: logicalCores,
     architecture: architecture,
     model: model,
     brand: brand,
     frequency: frequency,
+    timestamp: getTime().toUnix * 1_000_000_000
   )
-  validateCpuInfo(result)
+  validateCpuMetrics(result)
 
 proc getCoreCount(): tuple[physical, logical: int] =
   ## Internal helper to get physical and logical core counts
@@ -220,76 +236,6 @@ proc getCpuUsage*(): CpuUsage {.raises: [DarwinError].} =
 
   lastCpuInfo = currInfo
 
-proc getCpuInfo*(): CpuInfo =
-  ## Returns detailed CPU information for the current system.
-  ##
-  ## This includes:
-  ## * Number of physical and logical CPU cores
-  ## * CPU architecture (arm64/x86_64)
-  ## * Machine model identifier
-  ## * CPU brand string
-  ## * Frequency information (nominal, max, min if available)
-  ## * Current CPU usage information
-  ##
-  ## Note: Current CPU frequency is not available in user mode on macOS.
-  ## Use powermetrics (requires root) if you need real-time frequency data.
-  ##
-  ## Raises:
-  ## * DarwinError if system information cannot be retrieved
-  ## * DarwinVersionError if running on an unsupported Darwin version
-
-  checkDarwinVersion()
-
-  let cores = getCoreCount()
-  result = newCpuInfo(
-    physicalCores = cores.physical,
-    logicalCores = cores.logical,
-    architecture = getMachineArchitecture(),
-    model = getMachineModel(),
-    brand = getCpuBrand(),
-    frequency = getFrequencyInfo(),
-  )
-  result.usage = getCpuUsage()
-
-proc `$`*(usage: CpuUsage): string =
-  ## String representation of CPU usage information
-  fmt"""CPU Usage:
-  User:   {usage.user:.1f}%
-  System: {usage.system:.1f}%
-  Nice:   {usage.nice:.1f}%
-  Idle:   {usage.idle:.1f}%
-  Total:  {usage.total:.1f}%"""
-
-proc `$`*(freq: CpuFrequency): string =
-  ## String representation of CPU frequency information
-  var parts: seq[string] = @[]
-  parts.add fmt"Nominal: {freq.nominal:.0f} MHz"
-
-  if freq.current.isSome:
-    parts.add fmt"Current: {freq.current.get():.0f} MHz"
-  else:
-    parts.add "Current: Not available"
-
-  if freq.max.isSome:
-    parts.add fmt"Max: {freq.max.get():.0f} MHz"
-  if freq.min.isSome:
-    parts.add fmt"Min: {freq.min.get():.0f} MHz"
-
-  result = parts.join("\n  ")
-
-proc `$`*(info: CpuInfo): string =
-  ## String representation of CPU information
-  validateCpuInfo(info) # Validate before creating string representation
-  fmt"""CPU Information:
-  Architecture: {info.architecture}
-  Physical Cores: {info.physicalCores}
-  Logical Cores: {info.logicalCores}
-  Model: {info.model}
-  Brand: {info.brand}
-  Frequency:
-  {$info.frequency}
-{$info.usage}"""
-
 proc validateLoadAverage(load: LoadAverage) =
   ## Validates load average values
   ## Raises DarwinError if any values are invalid
@@ -304,6 +250,79 @@ proc validateLoadAverage(load: LoadAverage) =
         $load.fifteenMinute)
   if load.timestamp > getTime():
     raise newException(DarwinError, "Load average timestamp is in the future")
+
+proc getLoadAverage*(): Future[LoadAverage] {.async.} =
+  ## Get the current system load averages asynchronously
+  ##
+  ## Returns a Future[LoadAverage] containing the 1, 5, and 15 minute
+  ## load averages along with the timestamp of measurement.
+  ## Load averages represent the number of processes in the run queue
+  ## (waiting for CPU time) averaged over the specified time period.
+  ##
+  ## A load average of 1.0 means the system has exactly enough CPU
+  ## capacity to handle the current load. Values > 1.0 indicate
+  ## processes are waiting for CPU time.
+  ##
+  ## Thread-safe: Yes
+  ## Raises DarwinError if the load averages cannot be retrieved
+  let info = getHostLoadInfo()
+
+  # Convert scaled load averages to float values
+  result = LoadAverage(
+    oneMinute: info.avenrun[0].float / LOAD_SCALE.float,
+    fiveMinute: info.avenrun[1].float / LOAD_SCALE.float,
+    fifteenMinute: info.avenrun[2].float / LOAD_SCALE.float,
+    timestamp: getTime()
+  )
+  validateLoadAverage(result)
+
+proc getCpuMetrics*(): Future[CpuMetrics] {.async.} =
+  ## Returns detailed CPU metrics for the current system.
+  ##
+  ## This includes:
+  ## * Number of physical and logical CPU cores
+  ## * CPU architecture (arm64/x86_64)
+  ## * Machine model identifier
+  ## * CPU brand string
+  ## * Frequency information (nominal, max, min if available)
+  ## * Current CPU usage information
+  ## * Load averages
+  ##
+  ## Note: Current CPU frequency is not available in user mode on macOS.
+  ## Use powermetrics (requires root) if you need real-time frequency data.
+  ##
+  ## Raises:
+  ## * DarwinError if system information cannot be retrieved
+  ## * DarwinVersionError if running on an unsupported Darwin version
+
+  checkDarwinVersion()
+
+  let cores = getCoreCount()
+  result = newCpuMetrics(
+    physicalCores = cores.physical,
+    logicalCores = cores.logical,
+    architecture = getMachineArchitecture(),
+    model = getMachineModel(),
+    brand = getCpuBrand(),
+    frequency = getFrequencyInfo()
+  )
+  result.usage = getCpuUsage()
+  result.loadAverage = await getLoadAverage()
+  result.timestamp = getTime().toUnix * 1_000_000_000
+
+proc `$`*(metrics: CpuMetrics): string =
+  ## String representation of CPU metrics
+  validateCpuMetrics(metrics)
+  fmt"""CPU Information:
+  Architecture: {metrics.architecture}
+  Physical Cores: {metrics.physicalCores}
+  Logical Cores: {metrics.logicalCores}
+  Model: {metrics.model}
+  Brand: {metrics.brand}
+  Frequency:
+  {$metrics.frequency}
+{$metrics.usage}
+{$metrics.loadAverage}"""
 
 proc `$`*(load: LoadAverage): string =
   ## String representation of load average information
@@ -334,48 +353,13 @@ proc add*(history: LoadHistory, load: LoadAverage) =
       discard history.samples.popFirst()
     history.samples.addLast(load)
 
-proc getLoadAverageAsync*(): Future[LoadAverage] {.async.} =
-  ## Get the current system load averages asynchronously
-  ##
-  ## Returns a Future[LoadAverage] containing the 1, 5, and 15 minute
-  ## load averages along with the timestamp of measurement.
-  ## Load averages represent the number of processes in the run queue
-  ## (waiting for CPU time) averaged over the specified time period.
-  ##
-  ## A load average of 1.0 means the system has exactly enough CPU
-  ## capacity to handle the current load. Values > 1.0 indicate
-  ## processes are waiting for CPU time.
-  ##
-  ## Thread-safe: Yes
-  ## Raises DarwinError if the load averages cannot be retrieved
-  let info = getHostLoadInfo()
-
-  # Convert scaled load averages to float values
-  result = LoadAverage(
-    oneMinute: info.avenrun[0].float / LOAD_SCALE.float,
-    fiveMinute: info.avenrun[1].float / LOAD_SCALE.float,
-    fifteenMinute: info.avenrun[2].float / LOAD_SCALE.float,
-    timestamp: getTime(),
-  )
-  validateLoadAverage(result)
-
-proc startLoadMonitoring*(history: LoadHistory, interval: float = 60.0): Future[void] {.async.} =
-  ## Start monitoring load averages at the specified interval
-  ## The samples will be added to the provided history object
-  ##
-  ## Parameters:
-  ##   history: LoadHistory object to store samples in
-  ##   interval: Time in seconds between samples (default 60.0)
-  ##
-  ## Thread-safe: Yes
+proc startLoadTracking*(history: LoadHistory, interval = chronos.seconds(60)): Future[void] {.async.} =
+  ## Start tracking load averages at the specified interval
+  ## Returns a Future that completes when tracking is stopped
   while true:
-    try:
-      let load = await getLoadAverageAsync()
-      history.add(load)
-    except DarwinError as e:
-      # Log error but continue monitoring
-      echo "Error getting load average: ", e.msg
-    await sleepAsync(int(interval * 1000))
+    let load = await getLoadAverage()
+    history.add(load)
+    await chronos.sleepAsync(interval)
 
 proc getPerCoreCpuLoadInfo*(): seq[HostCpuLoadInfo] {.raises: [DarwinError].} =
   ## Retrieves per-core CPU load information using Mach's host_processor_info.
@@ -424,3 +408,9 @@ proc getPerCoreCpuLoadInfo*(): seq[HostCpuLoadInfo] {.raises: [DarwinError].} =
   discard vm_deallocate(mach_host_self(), cast[uint64](cpuInfoPtr), totalSize)
 
   return results
+
+proc len*(history: LoadHistory): int =
+  ## Returns the number of samples in the history
+  ## Thread-safe: Yes
+  withLock history.lock:
+    result = history.samples.len

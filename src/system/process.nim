@@ -1,27 +1,38 @@
 ## Process metrics for darwinmetrics.
 ##
-## This module provides types and procedures for gathering process-related metrics
+## This module provides procedures for gathering process-related metrics
 ## on macOS systems.
 
-type
-  ProcessInfo* = ref object
-    ## Information about system processes
-    totalProcesses*: int32   ## Total number of processes
-    runningProcesses*: int32 ## Number of running processes
-    zombieProcesses*: int32  ## Number of zombie processes
-    systemCPUTime*: float    ## System CPU time used
-    userCPUTime*: float     ## User CPU time used
-    virtualMemory*: int64   ## Virtual memory used
+import std/[times]
+import pkg/chronos
+import ../internal/process_types
+export process_types
 
-## Process metrics module for Darwin
-proc getProcessInfo*(): ProcessInfo =
-  ## Returns process usage and performance information
+proc getProcessMetrics*(): Future[ProcessMetrics] {.async.} =
+  ## Returns complete process metrics including process information and resource usage.
   ## Note: This is a placeholder implementation
-  result = ProcessInfo(
-    totalProcesses: 0'i32,
-    runningProcesses: 0'i32,
-    zombieProcesses: 0'i32,
-    systemCPUTime: 0.0,
-    userCPUTime: 0.0,
-    virtualMemory: 0'i64
+  result = ProcessMetrics(
+    info: ProcessInfo(
+      pid: 0,
+      ppid: 0,
+      name: "",
+      executable: "",
+      status: psRunning,
+      startTime: 0
+    ),
+    resources: ProcessResourceUsage(
+      cpuUser: 0.0,
+      cpuSystem: 0.0,
+      cpuTotal: 0.0,
+      cpuPercent: 0.0,
+      memoryRSS: 0,
+      memoryVirtual: 0,
+      memoryShared: 0,
+      ioRead: 0,
+      ioWrite: 0
+    ),
+    threads: 0,
+    openFiles: 0,
+    timestamp: getTime().toUnix * 1_000_000_000  # Convert to nanoseconds
   )
+  await chronos.sleepAsync(chronos.milliseconds(0))  # Yield to event loop

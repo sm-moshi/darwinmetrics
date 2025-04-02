@@ -8,7 +8,7 @@
 ##
 ## .. code-block:: nim
 ##   # Check battery status
-##   var info = PowerInfo()
+##   var info = PowerMetrics()
 ##   if info.isPresent:
 ##     echo "Battery level: ", info.percentRemaining, "%"
 ##
@@ -57,7 +57,7 @@ type
     currentCapacity*: int    ## Current maximum capacity in mAh
     maxCapacity*: int        ## Maximum capacity in mAh
 
-  PowerInfo* = object
+  PowerMetrics* = object
     ## Comprehensive power information structure combining
     ## battery status, charge level, and health metrics.
     isPresent*: bool         ## Whether battery is present
@@ -69,6 +69,7 @@ type
     health*: Option[BatteryHealth] ## Battery health if available
     isLowPower*: bool        ## Whether low power mode is active
     thermalPressure*: ThermalPressure ## Current thermal pressure level
+    timestamp*: int64        ## Unix timestamp in nanoseconds
 
   PowerError* = object of CatchableError
     ## Error type for power-related operations.

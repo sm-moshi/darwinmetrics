@@ -10,7 +10,7 @@
 ## Note: This is an internal module not meant for direct use. Use the high-level
 ## power module API instead.
 
-import std/[options, strutils]
+import std/options
 import power_types
 
 # CoreFoundation and IOKit imports
@@ -183,11 +183,11 @@ proc getBatteryHealth(dict: CFDictionaryRef): Option[BatteryHealth] =
 
   result = some(health)
 
-proc getRawPowerInfo*(): PowerInfo =
+proc getRawPowerMetrics*(): PowerMetrics =
   ## Retrieves raw power information from the system using IOPowerSources API
 
   # Create default result with safe values
-  result = PowerInfo(
+  result = PowerMetrics(
     isPresent: false,
     status: PowerStatus.Unknown,
     source: PowerSource.Unknown,
@@ -196,7 +196,8 @@ proc getRawPowerInfo*(): PowerInfo =
     timeToFull: none(int),
     health: none(BatteryHealth),
     isLowPower: isLowPowerMode(),
-    thermalPressure: getThermalPressure()
+    thermalPressure: getThermalPressure(),
+    timestamp: 0
   )
 
   # Get power sources info
@@ -248,20 +249,20 @@ proc getRawPowerInfo*(): PowerInfo =
     result.status = mapPowerStatus(result.source, isCharging, result.percentRemaining)
 
     # Get time remaining/to full
-    let timeToEmpty = getInteger(description, kIOPSTimeToEmptyKey)
-    if timeToEmpty > 0 and not isCharging:
-      result.timeRemaining = some(timeToEmpty)
+    if isCharging:
+      let timeToFull = getInteger(description, kIOPSTimeToFullChargeKey)
+      if timeToFull > 0:
+        result.timeToFull = some(timeToFull)
+    else:
+      let timeRemaining = getInteger(description, kIOPSTimeToEmptyKey)
+      if timeRemaining > 0:
+        result.timeRemaining = some(timeRemaining)
 
-    let timeToFull = getInteger(description, kIOPSTimeToFullChargeKey)
-    if timeToFull > 0 and isCharging:
-      result.timeToFull = some(timeToFull)
-
-    # Extract battery health if available
+    # Get battery health information
     result.health = getBatteryHealth(description)
-  else:
-    # Not a battery or battery not present
-    result.status = PowerStatus.ACPowered
-    result.source = PowerSource.AC
-    result.percentRemaining = 0.0
+
+  # Get low power mode and thermal pressure
+  result.isLowPower = isLowPowerMode()
+  result.thermalPressure = getThermalPressure()
 
   return result

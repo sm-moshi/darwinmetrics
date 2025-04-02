@@ -3,11 +3,12 @@
 ## These tests verify the CPU information retrieval functionality
 ## on Darwin-based systems.
 
-import std/[unittest, options, strutils, times, deques, asyncdispatch, os]
-when defined(threads):
-  import pkg/weave
+import std/[unittest, options, strutils, times, deques]
+import pkg/chronos
+import pkg/chronos/timer
 import ../src/system/cpu
 import ../src/internal/darwin_errors
+import ../src/internal/cpu_types
 
 const FloatEpsilon = 1e-6
 
@@ -30,63 +31,84 @@ when defined(darwin):
         weaveInitialized = false
 
   suite "CPU Information Tests":
-    test "getCpuInfo returns valid information":
-      let info = getCpuInfo()
-      check:
-        info.physicalCores > 0
-        info.logicalCores >= info.physicalCores
-        info.architecture in ["arm64", "x86_64"]
-        info.model.len > 0
-        info.brand.len > 0
-        # Check frequency information
-        info.frequency.nominal > 0.0 # Base frequency should be available
-        info.frequency.current.isNone # Current frequency not available in user mode
-        # Max and min frequencies are optional
-        (if info.frequency.max.isSome: info.frequency.max.get() >=
-            info.frequency.nominal
-        else: true)
-        (if info.frequency.min.isSome: info.frequency.min.get() <=
-            info.frequency.nominal
-        else: true)
-        # Check CPU usage values are valid
-        info.usage.user >= 0.0 and info.usage.user <= 100.0
-        info.usage.system >= 0.0 and info.usage.system <= 100.0
-        info.usage.idle >= 0.0 and info.usage.idle <= 100.0
-        info.usage.nice >= 0.0 and info.usage.nice <= 100.0
-        info.usage.total >= 0.0 and info.usage.total <= 100.0
-        # Total should be complement of idle
-        almostEqual(info.usage.total, 100.0 - info.usage.idle)
-        # Sum of user, system, idle, and nice should be approximately 100%
-        almostEqual(info.usage.user + info.usage.system + info.usage.idle +
-            info.usage.nice, 100.0)
+    test "getCpuMetrics returns valid information":
+      proc testAsync() {.async: (raises: [Exception]).} =
+        let metrics = await getCpuMetrics()
+        check:
+          metrics.architecture in ["arm64", "x86_64"]
+          metrics.model.len > 0
+          # GitHub runners may have different model naming conventions
+          # metrics.model.startsWith("Mac")
+          metrics.brand.len > 0
+          ("Intel" in metrics.brand) or ("Apple" in metrics.brand)
+          # Check frequency information
+          metrics.frequency.nominal > 0.0 # Base frequency should be available
+          metrics.frequency.current.isNone # Current frequency not available in user mode
+          # Max and min frequencies are optional
+          (if metrics.frequency.max.isSome: metrics.frequency.max.get() >=
+              metrics.frequency.nominal
+          else: true)
+          (if metrics.frequency.min.isSome: metrics.frequency.min.get() <=
+              metrics.frequency.nominal
+          else: true)
+          # Check CPU usage values are valid
+          metrics.usage.user >= 0.0 and metrics.usage.user <= 100.0
+          metrics.usage.system >= 0.0 and metrics.usage.system <= 100.0
+          metrics.usage.idle >= 0.0 and metrics.usage.idle <= 100.0
+          metrics.usage.nice >= 0.0 and metrics.usage.nice <= 100.0
+          metrics.usage.total >= 0.0 and metrics.usage.total <= 100.0
+          # Total should be complement of idle
+          almostEqual(metrics.usage.total, 100.0 - metrics.usage.idle)
+          # Sum of user, system, idle, and nice should be approximately 100%
+          almostEqual(metrics.usage.user + metrics.usage.system + metrics.usage.idle +
+              metrics.usage.nice, 100.0)
+      waitFor testAsync()
 
     test "CpuInfo string representation is formatted correctly":
-      let info = getCpuInfo()
+      let info = CpuInfo(
+        physicalCores: 8,
+        logicalCores: 8,
+        architecture: "arm64",
+        model: "MacBookPro18,3",
+        brand: "Apple M1 Pro"
+      )
       let str = $info
       check:
-        str.contains("Physical Cores:")
-        str.contains("Logical Cores:")
-        str.contains("Architecture:")
-        str.contains("Model:")
-        str.contains("Brand:")
-        str.contains("Frequency:")
-        str.contains("Nominal:")
-        str.contains("Current: Not available")
-        str.contains("CPU Usage:")
-        str.contains("User:")
-        str.contains("System:")
-        str.contains("Nice:")
-        str.contains("Idle:")
-        str.contains("Total:")
+        str.contains("Architecture: arm64")
+        str.contains("Model: MacBookPro18,3")
+        str.contains("Brand: Apple M1 Pro")
+        str.contains("Physical Cores: 8")
+        str.contains("Logical Cores: 8")
 
-    test "getCpuInfo handles missing frequency gracefully":
+    test "CpuMetrics string representation is formatted correctly":
+      proc testAsync() {.async: (raises: [Exception]).} =
+        let metrics = await getCpuMetrics()
+        let str = $metrics
+        check:
+          str.contains("Physical Cores:")
+          str.contains("Logical Cores:")
+          str.contains("Architecture:")
+          str.contains("Model:")
+          str.contains("Brand:")
+          str.contains("Frequency:")
+          str.contains("Nominal:")
+          str.contains("Current: Not available")
+          str.contains("CPU Usage:")
+          str.contains("User:")
+          str.contains("System:")
+          str.contains("Nice:")
+          str.contains("Idle:")
+          str.contains("Total:")
+      waitFor testAsync()
+
+    test "newCpuMetrics handles missing frequency gracefully":
       var freq = CpuFrequency()
       freq.nominal = 3500.0 # Updated to match M2 frequency
       freq.current = none(float)
       freq.max = none(float)
       freq.min = none(float)
 
-      var info = newCpuInfo(
+      var metrics = newCpuMetrics(
         physicalCores = 8,
         logicalCores = 8,
         architecture = "arm64",
@@ -94,44 +116,44 @@ when defined(darwin):
         brand = "Apple M2 Pro",
         frequency = freq
       )
-      info.usage = CpuUsage(
+      metrics.usage = CpuUsage(
         user: 0.0,
         system: 0.0,
         idle: 100.0,
         nice: 0.0,
         total: 0.0
       )
-      let str = $info
+      let str = $metrics
       check:
         str.contains("Frequency:")
         str.contains("MHz") # Just check for MHz unit
         str.contains("Current: Not available")
 
-    test "getCpuInfo validates core counts":
-      let info = getCpuInfo()
+    test "getCpuMetrics validates core counts":
+      let metrics = waitFor getCpuMetrics()
       check:
-        info.physicalCores > 0
-        info.logicalCores >= info.physicalCores
-        info.logicalCores mod info.physicalCores == 0
+        metrics.physicalCores > 0
+        metrics.logicalCores >= metrics.physicalCores
+        metrics.logicalCores mod metrics.physicalCores == 0
           # Logical cores should be a multiple of physical cores
 
-    test "getCpuInfo architecture matches system":
-      let info = getCpuInfo()
+    test "getCpuMetrics architecture matches system":
+      let metrics = waitFor getCpuMetrics()
       when defined(amd64):
-        check info.architecture == "x86_64"
+        check metrics.architecture == "x86_64"
       when defined(arm64):
-        check info.architecture == "arm64"
+        check metrics.architecture == "arm64"
 
-    test "getCpuInfo brand string is consistent":
-      let info = getCpuInfo()
+    test "getCpuMetrics brand string is consistent":
+      let metrics = waitFor getCpuMetrics()
       when defined(arm64):
-        check "Apple" in info.brand
+        check "Apple" in metrics.brand
       when defined(amd64):
-        check "Intel" in info.brand
+        check "Intel" in metrics.brand
 
-    test "getCpuInfo handles invalid core counts":
+    test "newCpuMetrics handles invalid core counts":
       expect (ref DarwinError):
-        discard newCpuInfo(
+        discard newCpuMetrics(
           physicalCores = -1,
           logicalCores = 8,
           architecture = "arm64",
@@ -140,9 +162,9 @@ when defined(darwin):
           frequency = CpuFrequency()
         )
 
-    test "getCpuInfo handles invalid architecture":
+    test "newCpuMetrics handles invalid architecture":
       expect (ref DarwinError):
-        discard newCpuInfo(
+        discard newCpuMetrics(
           physicalCores = 8,
           logicalCores = 8,
           architecture = "invalid",
@@ -151,9 +173,9 @@ when defined(darwin):
           frequency = CpuFrequency()
         )
 
-    test "getCpuInfo handles empty model/brand":
+    test "newCpuMetrics handles empty model/brand":
       expect (ref DarwinError):
-        discard newCpuInfo(
+        discard newCpuMetrics(
           physicalCores = 8,
           logicalCores = 8,
           architecture = "arm64",
@@ -163,28 +185,30 @@ when defined(darwin):
         )
 
     test "CPU usage values are consistent":
-      let usage1 = getCpuUsage()
-      check:
-        usage1.user >= 0.0 and usage1.user <= 100.0
-        usage1.system >= 0.0 and usage1.system <= 100.0
-        usage1.idle >= 0.0 and usage1.idle <= 100.0
-        usage1.nice >= 0.0 and usage1.nice <= 100.0
-        usage1.total >= 0.0 and usage1.total <= 100.0
-        almostEqual(usage1.total, 100.0 - usage1.idle)
-        almostEqual(usage1.user + usage1.system + usage1.idle + usage1.nice, 100.0)
+      proc testAsync() {.async: (raises: [DarwinError, CancelledError, Exception]).} =
+        let usage1 = getCpuUsage()
+        check:
+          usage1.user >= 0.0 and usage1.user <= 100.0
+          usage1.system >= 0.0 and usage1.system <= 100.0
+          usage1.idle >= 0.0 and usage1.idle <= 100.0
+          usage1.nice >= 0.0 and usage1.nice <= 100.0
+          usage1.total >= 0.0 and usage1.total <= 100.0
+          almostEqual(usage1.total, 100.0 - usage1.idle)
+          almostEqual(usage1.user + usage1.system + usage1.idle + usage1.nice, 100.0)
 
-      # Sleep briefly to allow for CPU activity
-      sleep(100)
+        # Sleep briefly to allow for CPU activity
+        await chronos.sleepAsync(100)
 
-      let usage2 = getCpuUsage()
-      check:
-        usage2.user >= 0.0 and usage2.user <= 100.0
-        usage2.system >= 0.0 and usage2.system <= 100.0
-        usage2.idle >= 0.0 and usage2.idle <= 100.0
-        usage2.nice >= 0.0 and usage2.nice <= 100.0
-        usage2.total >= 0.0 and usage2.total <= 100.0
-        almostEqual(usage2.total, 100.0 - usage2.idle)
-        almostEqual(usage2.user + usage2.system + usage2.idle + usage2.nice, 100.0)
+        let usage2 = getCpuUsage()
+        check:
+          usage2.user >= 0.0 and usage2.user <= 100.0
+          usage2.system >= 0.0 and usage2.system <= 100.0
+          usage2.idle >= 0.0 and usage2.idle <= 100.0
+          usage2.nice >= 0.0 and usage2.nice <= 100.0
+          usage2.total >= 0.0 and usage2.total <= 100.0
+          almostEqual(usage2.total, 100.0 - usage2.idle)
+          almostEqual(usage2.user + usage2.system + usage2.idle + usage2.nice, 100.0)
+      waitFor testAsync()
 
     test "CPU usage string representation is formatted correctly":
       let usage = getCpuUsage()
@@ -233,8 +257,9 @@ when defined(darwin):
         cleanupWeave()
 
     test "getLoadAverageAsync returns valid load averages":
-      proc testAsync() {.async.} =
-        let load = await getLoadAverageAsync()
+      proc testAsync() {.async: (raises: [DarwinError, CancelledError, Exception]).} =
+        let metrics = await getCpuMetrics()
+        let load = metrics.loadAverage
         check:
           load.oneMinute >= 0.0 # Load can be higher than 1.0 on busy systems
           load.fiveMinute >= 0.0
@@ -303,7 +328,7 @@ when defined(darwin):
         timestamp: now - 2.minutes
       )
       history.add(sample1)
-      check history.samples.len == 1
+      check history.len == 1
 
       # Second sample
       let sample2 = LoadAverage(
@@ -313,7 +338,7 @@ when defined(darwin):
         timestamp: now - 1.minutes
       )
       history.add(sample2)
-      check history.samples.len == 2
+      check history.len == 2
 
       # Third sample (should remove first)
       let sample3 = LoadAverage(
@@ -323,12 +348,12 @@ when defined(darwin):
         timestamp: now
       )
       history.add(sample3)
-      check history.samples.len == 2
+      check history.len == 2
 
     test "LoadHistory handles empty state":
       let history = newLoadHistory()
       check:
-        history.samples.len == 0
+        history.len == 0
         history.maxSamples == 60 # Default max samples
 
     when defined(threads):
@@ -354,8 +379,8 @@ when defined(darwin):
         sync()
 
         check:
-          history.samples.len <= history.maxSamples
-          history.samples.len >= min(NumThreads * SamplesPerThread,
+          history.len <= history.maxSamples
+          history.len >= min(NumThreads * SamplesPerThread,
               history.maxSamples)
 
       test "LoadHistory handles concurrent read/write":
@@ -374,7 +399,7 @@ when defined(darwin):
         # Spawn threads to read and write concurrently
         proc reader(hist: LoadHistory) {.gcsafe.} =
           for i in 0..<100:
-            let len = hist.samples.len
+            let len = hist.len
             check len <= hist.maxSamples
 
         proc writer(hist: LoadHistory) {.gcsafe.} =
@@ -392,16 +417,16 @@ when defined(darwin):
         sync()
 
         check:
-          history.samples.len <= history.maxSamples
-          history.samples.len > 0
+          history.len <= history.maxSamples
+          history.len > 0
 
   suite "Per-Core CPU Load Tests":
     test "getPerCoreCpuLoadInfo returns data for each core":
       let coreInfo = getPerCoreCpuLoadInfo()
-      let cpuInfo = getCpuInfo()
+      let metrics = waitFor getCpuMetrics()
 
       check:
-        coreInfo.len == cpuInfo.logicalCores
+        coreInfo.len == metrics.logicalCores
         coreInfo.len > 0
 
     test "Per-core load information contains valid tick values":
@@ -466,5 +491,107 @@ when defined(darwin):
           core.systemTicks[2] == 0'u32
           core.systemTicks[3] == 0'u32
 
+    test "Load average tracking works":
+      let history = newLoadHistory(maxSamples = 5)
+      let metrics = waitFor getCpuMetrics()
+      check:
+        metrics.loadAverage.oneMinute >= 0.0
+        metrics.loadAverage.fiveMinute >= 0.0
+        metrics.loadAverage.fifteenMinute >= 0.0
+        metrics.loadAverage.timestamp <= getTime()
+
+      history.add(metrics.loadAverage)
+      check history.len == 1
+
 else:
   echo "Skipping CPU tests on non-Darwin platform"
+
+when defined(macosx):
+  suite "CPU Information":
+    test "getCpuMetrics returns valid information":
+      proc testAsync() {.async: (raises: [DarwinError, CancelledError, Exception]).} =
+        let metrics = await getCpuMetrics()
+        check:
+          metrics.architecture in ["arm64", "x86_64"]
+          metrics.model.len > 0
+          metrics.brand.len > 0
+          ("Intel" in metrics.brand) or ("Apple" in metrics.brand)
+      waitFor testAsync()
+
+    test "CpuInfo string representation is formatted correctly":
+      let info = CpuInfo(
+        physicalCores: 8,
+        logicalCores: 8,
+        architecture: "arm64",
+        model: "MacBookPro18,3",
+        brand: "Apple M1 Pro"
+      )
+      let str = $info
+      check:
+        str.contains("Architecture: arm64")
+        str.contains("Model: MacBookPro18,3")
+        str.contains("Brand: Apple M1 Pro")
+        str.contains("Physical Cores: 8")
+        str.contains("Logical Cores: 8")
+
+    test "CpuMetrics string representation is formatted correctly":
+      proc testAsync() {.async: (raises: [DarwinError, CancelledError, Exception]).} =
+        let metrics = await getCpuMetrics()
+        let str = $metrics
+        check:
+          str.contains("Architecture: " & metrics.architecture)
+          str.contains("Model: " & metrics.model)
+          str.contains("Brand: " & metrics.brand)
+          str.contains("Physical Cores: " & $metrics.physicalCores)
+          str.contains("Logical Cores: " & $metrics.logicalCores)
+      waitFor testAsync()
+
+  suite "Load Average":
+    test "getLoadAverage returns valid information":
+      proc testAsync() {.async: (raises: [DarwinError, CancelledError, Exception]).} =
+        let metrics = await getCpuMetrics()
+        let load = metrics.loadAverage
+        check:
+          load.oneMinute >= 0.0
+          load.fiveMinute >= 0.0
+          load.fifteenMinute >= 0.0
+          load.timestamp <= getTime()
+      waitFor testAsync()
+
+    test "LoadAverage string representation is formatted correctly":
+      let load = LoadAverage(
+        oneMinute: 1.5,
+        fiveMinute: 2.0,
+        fifteenMinute: 1.8,
+        timestamp: getTime()
+      )
+      let str = $load
+      check:
+        str.contains("1 minute:  1.50")
+        str.contains("5 minute:  2.00")
+        str.contains("15 minute: 1.80")
+        str.contains("Timestamp:")
+
+  suite "CPU Usage":
+    test "CPU usage values are valid":
+      proc testAsync() {.async: (raises: [DarwinError, CancelledError, Exception]).} =
+        let metrics = await getCpuMetrics()
+        check:
+          metrics.usage.user >= 0.0 and metrics.usage.user <= 100.0
+          metrics.usage.system >= 0.0 and metrics.usage.system <= 100.0
+          metrics.usage.idle >= 0.0 and metrics.usage.idle <= 100.0
+          metrics.usage.nice >= 0.0 and metrics.usage.nice <= 100.0
+          abs(metrics.usage.user + metrics.usage.system + metrics.usage.idle + metrics.usage.nice - 100.0) <= 0.1
+      waitFor testAsync()
+
+    test "CPU usage tracking":
+      proc testAsync() {.async: (raises: [DarwinError, CancelledError, Exception]).} =
+        var metrics = await getCpuMetrics()
+        await chronos.sleepAsync(100)
+        metrics = await getCpuMetrics()
+        check:
+          metrics.usage.user >= 0.0
+          metrics.usage.system >= 0.0
+          metrics.usage.idle >= 0.0
+          metrics.usage.nice >= 0.0
+      waitFor testAsync()

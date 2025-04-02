@@ -13,12 +13,11 @@ The CPU metrics module provides detailed information about your system's CPU, in
 import darwinmetrics/system/cpu
 
 # Get CPU information
-let info = getCpuInfo()
-echo info
+let metrics = getCpuMetrics().await
+echo metrics.info
 
 # Get load averages
-let load = getLoadAverageAsync().await
-echo load
+echo metrics.loadAverage
 
 # Monitor per-core statistics
 let coreStats = getPerCoreCpuLoadInfo()
@@ -139,24 +138,25 @@ The module implements graceful fallbacks and clear error handling:
 ### 🔍 Basic CPU Information
 
 ```nim
-let info = getCpuInfo()
-echo "CPU: ", info.brand
-echo "Cores: ", info.physicalCores, " physical, ", info.logicalCores, " logical"
-echo "Architecture: ", info.architecture
+let metrics = getCpuMetrics().await
+echo "CPU: ", metrics.info.brand
+echo "Cores: ", metrics.info.physicalCores, " physical, ", metrics.info.logicalCores, " logical"
+echo "Architecture: ", metrics.info.architecture
 ```
 
 ### 📊 Monitoring Load Averages
 
 ```nim
-let load = getLoadAverageAsync().await
-echo "Load averages: ", load.oneMinute, " ", load.fiveMinutes, " ", load.fifteenMinutes
+let metrics = getCpuMetrics().await
+echo "Load averages: ", metrics.loadAverage.oneMinute, " ", metrics.loadAverage.fiveMinute, " ", metrics.loadAverage.fifteenMinute
 ```
 
 ### 📈 Tracking Load History
 
 ```nim
 let history = newLoadHistory()
-history.add(getLoadAverageAsync().await)
+let metrics = getCpuMetrics().await
+history.add(metrics.loadAverage)
 echo "Recent load history: ", history
 ```
 

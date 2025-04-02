@@ -15,24 +15,25 @@
 ## import darwinmetrics/system/power
 ##
 ## # Get comprehensive power information
-## let powerInfo = getPowerInfo()
-## echo "Battery present: ", powerInfo.isPresent
-## if powerInfo.isPresent:
-##   echo "Battery level: ", powerInfo.percentRemaining, "%"
-##   echo "Power status: ", powerInfo.status
+## let metrics = getPowerMetrics()
+## echo "Battery present: ", metrics.isPresent
+## if metrics.isPresent:
+##   echo "Battery level: ", metrics.percentRemaining, "%"
+##   echo "Power status: ", metrics.status
 ##
-##   if powerInfo.timeRemaining.isSome:
-##     echo "Time remaining: ", powerInfo.timeRemaining.get(), " minutes"
+##   if metrics.timeRemaining.isSome:
+##     echo "Time remaining: ", metrics.timeRemaining.get(), " minutes"
 ## ```
 ##
 ## Note: Some power management features require privileged access.
 
-import std/[options, strformat, strutils]
+import std/[options, strformat, strutils, times]
 import ../internal/[platform_darwin, power_types, mach_power]
 
-export power_types
+export power_types.PowerMetrics, power_types.PowerStatus, power_types.PowerSource,
+       power_types.ThermalPressure, power_types.BatteryHealth
 
-proc getPowerInfo*(): PowerInfo {.raises: [].} =
+proc getPowerMetrics*(): PowerMetrics {.raises: [].} =
   ## Returns comprehensive power and battery information.
   ##
   ## This includes battery presence, charge level, power source,
@@ -42,25 +43,27 @@ proc getPowerInfo*(): PowerInfo {.raises: [].} =
   ## will be false, and battery-specific fields will contain default values.
   ##
   ## Returns:
-  ##   A `PowerInfo` object containing power system information
+  ##   A `PowerMetrics` object containing power system information
   ##
   ## Example:
   ##   ```nim
-  ##   let info = getPowerInfo()
-  ##   if info.isPresent:
-  ##     echo "Battery at ", info.percentRemaining, "%"
-  ##     if info.status == Charging:
-  ##       echo "Charging - ", info.timeToFull.get(), " minutes to full charge"
+  ##   let metrics = getPowerMetrics()
+  ##   if metrics.isPresent:
+  ##     echo "Battery at ", metrics.percentRemaining, "%"
+  ##     if metrics.status == Charging:
+  ##       echo "Charging - ", metrics.timeToFull.get(), " minutes to full charge"
   ##     else:
-  ##       echo "On battery - ", info.timeRemaining.get(), " minutes remaining"
+  ##       echo "On battery - ", metrics.timeRemaining.get(), " minutes remaining"
   ##   else:
   ##     echo "No battery present, running on AC power"
   ##   ```
   try:
     checkDarwinVersion()
-    result = mach_power.getRawPowerInfo()
+    var metrics = mach_power.getRawPowerMetrics()
+    metrics.timestamp = getTime().toUnix * 1_000_000_000
+    result = metrics
   except:
-    result = PowerInfo(
+    result = PowerMetrics(
       isPresent: false,
       status: PowerStatus.Unknown,
       source: PowerSource.Unknown,
@@ -69,7 +72,8 @@ proc getPowerInfo*(): PowerInfo {.raises: [].} =
       timeToFull: none(int),
       health: none(BatteryHealth),
       isLowPower: false,
-      thermalPressure: ThermalPressure.Unknown
+      thermalPressure: ThermalPressure.Unknown,
+      timestamp: getTime().toUnix * 1_000_000_000
     )
 
 proc getBatteryPercentage*(): float {.raises: [].} =
@@ -85,9 +89,9 @@ proc getBatteryPercentage*(): float {.raises: [].} =
   ##   let percent = getBatteryPercentage()
   ##   echo "Battery: ", percent, "%"
   ##   ```
-  let info = getPowerInfo()
-  if info.isPresent:
-    result = info.percentRemaining
+  let metrics = getPowerMetrics()
+  if metrics.isPresent:
+    result = metrics.percentRemaining
   else:
     result = 0.0
 
@@ -106,8 +110,8 @@ proc isPowerAdapterConnected*(): bool {.raises: [].} =
   ##   else:
   ##     echo "Running on battery"
   ##   ```
-  let info = getPowerInfo()
-  result = info.source == PowerSource.AC
+  let metrics = getPowerMetrics()
+  result = metrics.source == PowerSource.AC
 
 proc getRemainingTime*(): Option[int] {.raises: [].} =
   ## Returns the estimated time remaining in minutes for battery operation.
@@ -126,9 +130,9 @@ proc getRemainingTime*(): Option[int] {.raises: [].} =
   ##   else:
   ##     echo "Not on battery or time remaining unknown"
   ##   ```
-  let info = getPowerInfo()
-  if info.isPresent and info.status == PowerStatus.Discharging:
-    result = info.timeRemaining
+  let metrics = getPowerMetrics()
+  if metrics.isPresent and metrics.status == PowerStatus.Discharging:
+    result = metrics.timeRemaining
   else:
     result = none(int)
 
@@ -151,8 +155,8 @@ proc getBatteryHealth*(): Option[BatteryHealth] {.raises: [].} =
   ##   else:
   ##     echo "Battery health information not available"
   ##   ```
-  let info = getPowerInfo()
-  result = info.health
+  let metrics = getPowerMetrics()
+  result = metrics.health
 
 proc getThermalPressureLevel*(): ThermalPressure {.raises: [].} =
   ## Returns the current thermal pressure level.
@@ -172,32 +176,35 @@ proc getThermalPressureLevel*(): ThermalPressure {.raises: [].} =
   ##   of Critical: echo "System is in critical thermal state"
   ##   of Unknown: echo "Thermal state cannot be determined"
   ##   ```
-  let info = getPowerInfo()
-  result = info.thermalPressure
+  let metrics = getPowerMetrics()
+  result = metrics.thermalPressure
 
-proc `$`*(info: PowerInfo): string =
+proc `$`*(metrics: PowerMetrics): string =
   ## String representation of power information
   var parts = @[fmt"Power Information:"]
-  parts.add(fmt"  Battery present: {info.isPresent}")
-  parts.add(fmt"  Power source: {info.source}")
-  parts.add(fmt"  Status: {info.status}")
+  parts.add(fmt"  Battery present: {metrics.isPresent}")
+  parts.add(fmt"  Power source: {metrics.source}")
+  parts.add(fmt"  Status: {metrics.status}")
+  parts.add(fmt"  Low power mode: {metrics.isLowPower}")
+  parts.add(fmt"  Thermal pressure: {metrics.thermalPressure}")
 
-  if info.isPresent:
-    parts.add(fmt"  Battery level: {info.percentRemaining:.1f}%")
-    if info.timeRemaining.isSome:
-      let mins = info.timeRemaining.get()
+  if metrics.isPresent:
+    parts.add(fmt"  Battery level: {metrics.percentRemaining:.1f}%")
+    if metrics.timeRemaining.isSome:
+      let mins = metrics.timeRemaining.get()
       parts.add(fmt"  Time remaining: {mins div 60}h {mins mod 60}m")
-    if info.timeToFull.isSome and info.status == PowerStatus.Charging:
-      let mins = info.timeToFull.get()
+    if metrics.timeToFull.isSome and metrics.status == PowerStatus.Charging:
+      let mins = metrics.timeToFull.get()
       parts.add(fmt"  Time to full charge: {mins div 60}h {mins mod 60}m")
-    if info.health.isSome:
-      let health = info.health.get()
+    if metrics.health.isSome:
+      let health = metrics.health.get()
       parts.add(fmt"  Battery health:")
       parts.add(fmt"    Cycle count: {health.cycleCount}")
       parts.add(fmt"    Condition: {health.condition}")
-      parts.add(fmt"    Capacity: {(health.currentCapacity.float / health.designCapacity.float) * 100:.1f}%")
-
-  parts.add(fmt"  Low power mode: {info.isLowPower}")
-  parts.add(fmt"  Thermal pressure: {info.thermalPressure}")
+      if health.temperature > 0:
+        parts.add(fmt"    Temperature: {health.temperature:.1f}°C")
+      parts.add(fmt"    Design capacity: {health.designCapacity} mAh")
+      parts.add(fmt"    Current capacity: {health.currentCapacity} mAh")
+      parts.add(fmt"    Maximum capacity: {health.maxCapacity} mAh")
 
   result = parts.join("\n")

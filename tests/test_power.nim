@@ -6,8 +6,8 @@ proc almostEqual(a, b: float, epsilon = 0.001): bool =
   abs(a - b) <= epsilon
 
 suite "Power API Tests":
-  test "getPowerInfo returns valid information":
-    let info = getPowerInfo()
+  test "getPowerMetrics returns valid information":
+    let info = getPowerMetrics()
     check:
       info.source in {PowerSource.AC, PowerSource.Battery, PowerSource.UPS,
           PowerSource.Unknown}
@@ -31,7 +31,7 @@ suite "Power API Tests":
       connected in [true, false]
 
     # Cross-check with main power info
-    let info = getPowerInfo()
+    let info = getPowerMetrics()
     check:
       connected == (info.source == PowerSource.AC)
 
@@ -42,7 +42,7 @@ suite "Power API Tests":
         remaining.get() >= 0
 
     # Cross-check with main power info
-    let info = getPowerInfo()
+    let info = getPowerMetrics()
     if info.isPresent and info.status == PowerStatus.Discharging and
         info.timeRemaining.isSome():
       check:
@@ -71,8 +71,8 @@ suite "Power API Tests":
                    ThermalPressure.Heavy, ThermalPressure.Critical,
                    ThermalPressure.Unknown}
 
-  test "PowerInfo string representation is formatted correctly":
-    let info = getPowerInfo()
+  test "PowerMetrics string representation is formatted correctly":
+    let info = getPowerMetrics()
     let str = $info
 
     # Basic info that should always be present
@@ -100,14 +100,14 @@ suite "Power API Tests":
         check str.contains("Battery health:")
 
   test "Low power mode is a boolean value":
-    let info = getPowerInfo()
+    let info = getPowerMetrics()
     check info.isLowPower in [true, false]
 
   test "Data consistency between multiple calls":
     # Create two snapshots and verify they have similar values
-    let info1 = getPowerInfo()
+    let info1 = getPowerMetrics()
     os.sleep(10) # Brief pause to allow minimal change (in milliseconds)
-    let info2 = getPowerInfo()
+    let info2 = getPowerMetrics()
 
     # Source and status should remain consistent during brief periods
     check info1.source == info2.source
@@ -125,7 +125,7 @@ suite "Power API Tests":
 
     for i in 1..numCalls:
       try:
-        let info = getPowerInfo()
+        let info = getPowerMetrics()
         check info.source in {PowerSource.AC, PowerSource.Battery,
             PowerSource.UPS, PowerSource.Unknown}
       except:
@@ -134,7 +134,7 @@ suite "Power API Tests":
     check errorCount == 0 # Power API should handle repeated calls without errors
 
   test "Power status and source are logically consistent":
-    let info = getPowerInfo()
+    let info = getPowerMetrics()
 
     # Test logical relationships between status and source
     if info.status == PowerStatus.ACPowered:
@@ -149,14 +149,14 @@ suite "Power API Tests":
           PowerStatus.Discharging
 
   test "Thermal pressure and power measures are related":
-    let info = getPowerInfo()
+    let info = getPowerMetrics()
     let pressure = getThermalPressureLevel()
 
     # They should match
     check info.thermalPressure == pressure
 
   test "Format validation for energy and time values":
-    let info = getPowerInfo()
+    let info = getPowerMetrics()
 
     # Battery percentage should be formatted as 0-100%
     check info.percentRemaining >= 0.0 and info.percentRemaining <= 100.0
