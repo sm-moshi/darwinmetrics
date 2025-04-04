@@ -182,7 +182,7 @@ Power Information:
     Design capacity: 5000 mAh
     Current capacity: 4635 mAh
     Maximum capacity: 4800 mAh
-  Timestamp: 2024-04-04 14:30:45
+  Timestamp: 2025-04-04 14:30:45
 ```
 
 ## Implementation Details

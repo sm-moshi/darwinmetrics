@@ -9,7 +9,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.0.7] - 2024-04-04 🔋
+## [0.0.7] - 2025-04-04 🔋
 
 ### ✨ Added
 
@@ -67,7 +67,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Removed `sampling_core.nim` as part of architecture redesign
   - Removed `sampling_stdlib.nim` to standardize on Chronos
 
-## [0.0.6] - 2024-04-01 🧠
+## [0.0.6] - 2025-04-01 🧠
 
 ### ✨ Added
 
@@ -94,7 +94,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Matched documentation style with memory module
   - Added clear separation between low-level and high-level interfaces
 
-## [0.0.5] - 2024-04-01 🚀
+## [0.0.5] - 2025-04-01 🚀
 
 ### ✨ Added
 
@@ -128,7 +128,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Thread safety concerns in CPU metrics module
 - Documentation for memory management across Darwin platforms
 
-## [0.0.4] - 2024-04-01 📊
+## [0.0.4] - 2025-04-01 📊
 
 ### ✨ Added
 
@@ -149,7 +149,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Deque handling in LoadHistory tests
 - Timestamp validation in load average tracking
 
-## [0.0.3] - 2024-04-01 🔍
+## [0.0.3] - 2025-04-01 🔍
 
 ### ✨ Added
 
@@ -166,7 +166,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - None
 
-## [0.0.2] - 2024-04-01 🛠️
+## [0.0.2] - 2025-04-01 🛠️
 
 ### ✨ Added
 
@@ -185,7 +185,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated development workflow with new tasks
 - Enhanced platform compatibility checks
 
-## [0.0.1] - 2024-04-01 🎉
+## [0.0.1] - 2025-04-01 🎉
 
 ### ✨ Added
 
