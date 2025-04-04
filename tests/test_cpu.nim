@@ -8,7 +8,8 @@ import ../src/internal/cpu_types
 when defined(macosx):
   suite "CPU Information":
     test "getCpuMetrics returns valid information":
-      proc testAsync() {.async: (raises: [DarwinError, CancelledError, Exception]).} =
+      proc testAsync() {.async: (raises: [DarwinError, CancelledError,
+          Exception]).} =
         let metrics = await getCpuMetrics()
         check:
           metrics.architecture in ["arm64", "x86_64"]
@@ -35,7 +36,8 @@ when defined(macosx):
 
   suite "Load Average":
     test "getLoadAverage returns valid information":
-      proc testAsync() {.async: (raises: [DarwinError, CancelledError, Exception]).} =
+      proc testAsync() {.async: (raises: [DarwinError, CancelledError,
+          Exception]).} =
         let metrics = await getCpuMetrics()
         let load = metrics.loadAverage
         check:

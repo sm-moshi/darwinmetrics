@@ -21,9 +21,18 @@
 ##   let load = LoadAverage()
 ##   echo "1-minute load: ", load.oneMinute
 
-import std/[options, times, deques, locks, strformat]
+import std/[options, times, deques, locks]
 
 type
+  CPUState* = enum
+    ## CPU power states
+    cpuStateUnknown = 0
+    cpuStateRunning = 1
+    cpuStateStopped = 2
+    cpuStateSleeping = 3
+    cpuStateHalted = 4
+    cpuStateError = 5
+
   CpuUsage* = object
     ## CPU usage percentages
     user*: float        ## User mode CPU usage (%)
@@ -52,6 +61,12 @@ type
     architecture*: string ## CPU architecture (arm64/x86_64)
     model*: string       ## Machine model identifier
     brand*: string       ## CPU brand string
+    frequency*: CpuFrequency     ## CPU frequency information
+    usage*: CpuUsage            ## Current CPU usage percentages
+    coreStats*: seq[CpuCoreStats] ## Per-core statistics (if available)
+    temperature*: Option[float]  ## CPU package temperature in °C (if available)
+    state*: CPUState           ## Current CPU power state
+    powerUsage*: Option[float] ## Current CPU power usage in Watts (if available)
 
   LoadAverage* = object
     ## System load average information
@@ -86,7 +101,13 @@ proc `$`*(info: CpuInfo): string =
   result &= "Model: " & info.model & "\n"
   result &= "Brand: " & info.brand & "\n"
   result &= "Physical Cores: " & $info.physicalCores & "\n"
-  result &= "Logical Cores: " & $info.logicalCores
+  result &= "Logical Cores: " & $info.logicalCores & "\n"
+  result &= "Frequency:\n" & $info.frequency & "\n"
+  result &= $info.usage & "\n"
+  if info.temperature.isSome:
+    result &= "Temperature: " & $info.temperature.get() & "°C\n"
+  if info.powerUsage.isSome:
+    result &= "Power Usage: " & $info.powerUsage.get() & "W"
 
 proc `$`*(freq: CpuFrequency): string =
   ## String representation of CPU frequency

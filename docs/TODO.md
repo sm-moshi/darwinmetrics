@@ -33,7 +33,7 @@ This document outlines the planned implementation steps for the `darwinmetrics` 
 - [x] Retrieve per-core and total usage
 - [x] Measure load average
 - [x] Detect current and max frequency
-- [x] Async update interface
+- [ ] Async update interface
 - [x] Unit tests with mocked values
 - [x] Initialize basic CPU metrics
 - [x] Add CPU frequency detection
@@ -120,10 +120,10 @@ This document outlines the planned implementation steps for the `darwinmetrics` 
 
 ## 🌐 Async + Sampling
 
-- [ ] Define async polling interface for selected metrics
-- [ ] Support configurable sampling rate
-- [ ] Expose async helpers using `asyncdispatch` or `chronos`
-- [ ] Support cancellation and timeouts
+- [x] Define async polling interface for selected metrics
+- [x] Support configurable sampling rate
+- [x] Expose async helpers using `chronos`
+- [x] Support cancellation and timeouts
 
 ---
 

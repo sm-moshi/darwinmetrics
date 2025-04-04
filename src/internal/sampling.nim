@@ -18,9 +18,6 @@
 import ./sampling/core
 export core
 
-# Import the duration converters
-import ./sampling/converters
-
 # Import Chronos backend
 import pkg/chronos
 import ./sampling/chronos_backend

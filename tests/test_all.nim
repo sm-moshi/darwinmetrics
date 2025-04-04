@@ -10,8 +10,6 @@ import test_system_cpu
 import test_cpu
 import test_memory
 import test_platform_darwin
-import test_polling
-import test_helpers
 
 when isMainModule:
   echo "Running all tests..."

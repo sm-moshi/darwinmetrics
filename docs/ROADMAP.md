@@ -42,10 +42,10 @@ This document defines the long-term development goals and phased milestones for 
 
 🎯 Goal: Add async interfaces and shared metric model structures
 
-- [ ] Define `MetricResult` / `MetricSnapshot` types
-- [ ] Build async polling helpers
-- [ ] Add cancellation support
-- [ ] Enable periodic sampling for all core metrics
+- [x] Define `MetricResult` / `MetricSnapshot` types
+- [x] Build async polling helpers
+- [x] Add cancellation support
+- [x] Enable periodic sampling for all core metrics
 
 ---
 

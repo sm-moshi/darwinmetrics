@@ -5,9 +5,10 @@
 
 import std/times
 import chronos
+import chronos/timer
 import ./sampling/core
+
 export chronos.seconds, chronos.milliseconds, chronos.nanoseconds
-export chronos.sleepAsync, chronos.withTimeout
 export chronos.AsyncTimeoutError, chronos.CancelledError
 
 type
@@ -18,9 +19,9 @@ type
 
   PollConfig* = object
     ## Configuration for polling behaviour
-    baseInterval*: timer.Duration     ## Base interval between polls
-    maxInterval*: timer.Duration      ## Maximum interval (with backoff)
-    timeout*: timer.Duration         ## Maximum time to wait for each poll
+    baseInterval*: chronos.Duration     ## Base interval between polls
+    maxInterval*: chronos.Duration      ## Maximum interval (with backoff)
+    timeout*: chronos.Duration         ## Maximum time to wait for each poll
     maxRetries*: int          ## Maximum number of retries (0 = infinite)
     backoffFactor*: float     ## Multiply interval by this on failure
 
@@ -39,7 +40,7 @@ proc newPollConfig*(baseInterval = chronos.milliseconds(100),
   )
 
 proc pollAsync*[T](action: proc(): Future[T] {.closure, gcsafe.},
-                   config = newPollConfig()): Future[T] {.async.} =
+                   config = newPollConfig()): Future[T] {.async: (raises: [PollError, CancelledError]).} =
   ## Executes an async action with retry and backoff logic
   var
     retryCount = 0
@@ -78,13 +79,36 @@ proc pollAsync*[T](action: proc(): Future[T] {.closure, gcsafe.},
     else:
       nextInterval
 
-    await sleepAsync(currentInterval)
+    await chronos.sleepAsync(currentInterval)
 
 proc pollUntilAsync*[T](action: proc(): Future[T] {.closure, gcsafe.},
                         predicate: proc(val: T): bool {.gcsafe.},
-                        config = newPollConfig()): Future[T] {.async.} =
+                        config = newPollConfig()): Future[T] {.async: (raises: [PollError, CancelledError]).} =
   ## Polls until predicate returns true or we exceed retries
   while true:
     let val = await pollAsync(action, config)
     if predicate(val):
       return val
+
+proc pollEvery*(interval: chronos.Duration, callback: proc(): Future[void] {.closure, gcsafe.}): Future[void] {.async: (raises: [CancelledError, Exception]).} =
+  ## Polls a callback at regular intervals.
+  ## The callback must be async and gcsafe.
+  ##
+  ## Note: This procedure may raise CancelledError if cancelled,
+  ## or Exception from the callback or sleep operations.
+  while true:
+    try:
+      try:
+        await callback()
+      except CancelledError as e:
+        raise e
+      except CatchableError:
+        # Ignore errors in callback
+        discard
+
+      await chronos.sleepAsync(interval)
+    except CancelledError as e:
+      raise e
+    except CatchableError:
+      # Ignore any other errors and continue polling
+      discard

@@ -14,7 +14,7 @@
 ## Example:
 ##
 ## .. code-block:: nim
-##   import darwinmetrics, asyncdispatch
+##   import darwinmetrics
 ##
 ##   # One-time collection
 ##   let cpu = darwinmetrics.collectCPUMetrics()
@@ -30,7 +30,7 @@
 ##   # ... later ...
 ##   sampler.stop()
 
-import std/[options, asyncdispatch]
+import std/[options]
 
 # Import types
 import internal/[
