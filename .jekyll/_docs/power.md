@@ -19,12 +19,12 @@ The power module uses IOKit to retrieve battery and power management information
 
 ## Core Types
 
-### PowerInfo
+### PowerMetrics
 
 The main information structure containing all power-related data:
 
 ```nim
-type PowerInfo* = object
+type PowerMetrics* = object
   isPresent*: bool         ## Whether battery is present
   status*: PowerStatus     ## Current power status
   source*: PowerSource     ## Current power source
@@ -34,6 +34,7 @@ type PowerInfo* = object
   health*: Option[BatteryHealth] ## Battery health if available
   isLowPower*: bool        ## Whether low power mode is active
   thermalPressure*: ThermalPressure ## Current thermal pressure level
+  timestamp*: int64        ## When these metrics were collected (nanoseconds)
 ```
 
 ### PowerStatus
@@ -90,10 +91,10 @@ type ThermalPressure* = enum
 
 ## API Functions
 
-### getPowerInfo
+### getPowerMetrics
 
 ```nim
-proc getPowerInfo*(): PowerInfo {.raises: [].}
+proc getPowerMetrics*(): PowerMetrics {.raises: [].}
 ```
 
 Returns comprehensive power and battery information. This includes battery presence, charge level, power source, charging status, and estimated times for battery operation.
@@ -103,13 +104,13 @@ On systems without batteries (like desktop Macs), `isPresent` will be false, and
 **Example:**
 
 ```nim
-let info = getPowerInfo()
-if info.isPresent:
-  echo "Battery at ", info.percentRemaining, "%"
-  if info.status == PowerStatus.Charging:
-    echo "Charging - ", info.timeToFull.get(), " minutes to full charge"
+let metrics = getPowerMetrics()
+if metrics.isPresent:
+  echo "Battery at ", metrics.percentRemaining, "%"
+  if metrics.status == PowerStatus.Charging:
+    echo "Charging - ", metrics.timeToFull.get(), " minutes to full charge"
   else:
-    echo "On battery - ", info.timeRemaining.get(), " minutes remaining"
+    echo "On battery - ", metrics.timeRemaining.get(), " minutes remaining"
 else:
   echo "No battery present, running on AC power"
 ```
@@ -127,63 +128,6 @@ Returns the current battery percentage (0-100). On systems without batteries, re
 ```nim
 let percent = getBatteryPercentage()
 echo "Battery: ", percent, "%"
-```
-
-### isPowerAdapterConnected
-
-```nim
-proc isPowerAdapterConnected*(): bool {.raises: [].}
-```
-
-Checks if the system is connected to an external power source. Returns true if on AC power, false if on battery.
-
-**Example:**
-
-```nim
-if isPowerAdapterConnected():
-  echo "Connected to power adapter"
-else:
-  echo "Running on battery"
-```
-
-### getRemainingTime
-
-```nim
-proc getRemainingTime*(): Option[int] {.raises: [].}
-```
-
-Returns the estimated time remaining in minutes for battery operation. If the system is on AC power or has no battery, returns None.
-
-**Example:**
-
-```nim
-let remaining = getRemainingTime()
-if remaining.isSome():
-  echo "Time remaining: ", remaining.get() div 60, " hours, ",
-       remaining.get() mod 60, " minutes"
-else:
-  echo "Not on battery or time remaining unknown"
-```
-
-### getBatteryHealth
-
-```nim
-proc getBatteryHealth*(): Option[BatteryHealth] {.raises: [].}
-```
-
-Returns battery health information if available. This includes cycle count, condition, and capacity metrics.
-
-**Example:**
-
-```nim
-let health = getBatteryHealth()
-if health.isSome():
-  let h = health.get()
-  echo "Cycle count: ", h.cycleCount
-  echo "Condition: ", h.condition
-  echo "Capacity: ", (h.currentCapacity.float / h.designCapacity.float) * 100, "%"
-else:
-  echo "Battery health information not available"
 ```
 
 ### getThermalPressureLevel
@@ -211,13 +155,13 @@ of ThermalPressure.Unknown:
   echo "Thermal state cannot be determined"
 ```
 
-## PowerInfo String Representation
+## PowerMetrics String Representation
 
-The `PowerInfo` type implements a string conversion that produces a formatted representation of all power metrics:
+The `PowerMetrics` type implements a string conversion that produces a formatted representation of all power metrics:
 
 ```nim
-let info = getPowerInfo()
-echo $info
+let metrics = getPowerMetrics()
+echo $metrics
 ```
 
 Example output:
@@ -227,14 +171,18 @@ Power Information:
   Battery present: true
   Power source: Battery
   Status: Discharging
+  Low power mode: false
+  Thermal pressure: Normal
   Battery level: 75.2%
   Time remaining: 3h 45m
   Battery health:
     Cycle count: 142
     Condition: Normal
-    Capacity: 92.7%
-  Low power mode: false
-  Thermal pressure: Normal
+    Temperature: 35.2°C
+    Design capacity: 5000 mAh
+    Current capacity: 4635 mAh
+    Maximum capacity: 4800 mAh
+  Timestamp: 2024-04-04 14:30:45
 ```
 
 ## Implementation Details
@@ -249,7 +197,20 @@ These functions are wrapped in a Nim-friendly interface that handles all memory 
 
 ## Thread Safety
 
-All functions in the power module are thread-safe and can be called from multiple threads simultaneously.
+All functions in the power module are thread-safe and can be called from multiple threads simultaneously. The module uses internal synchronization to ensure consistent access to system power information.
+
+## Error Handling
+
+The module implements robust error handling:
+
+```nim
+type PowerError* = object of Exception
+```
+
+- Power-related errors are captured in `PowerError`
+- Invalid power metrics raise descriptive errors
+- Battery information failures include error codes
+- Resource cleanup is guaranteed even on errors
 
 ## See Also
 

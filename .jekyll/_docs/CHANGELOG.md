@@ -184,12 +184,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] 🔮
 
-### 📋 Planned
+### ✨ Added
 
-- Add real metric collection for all modules
-- Complete test coverage
-- Add async sampling support
-- Add exporters (Prometheus, InfluxDB)
+- Implemented robust Chronos-based metric collection system:
+  - Added `MetricCollector` type with configurable timeouts and error handling
+  - Implemented async collection methods for CPU, memory, power, and process metrics
+  - Added parallel collection via `collectAll` for efficient metric gathering
+  - Introduced periodic sampling with configurable intervals
+  - Added comprehensive error handling and propagation
+  - Added proper cleanup and cancellation in async operations
+  - Added type-safe metric value handling with proper timestamps
+  - Added snapshot retention with configurable limits
+  - Added proper timeout handling (5s default)
+  - Added comprehensive test coverage for all scenarios
+
+### 🔄 Changed
+
+- Refactored metric collection architecture:
+  - Moved to Chronos-based async implementation for better performance
+  - Enhanced error context with metric-specific information
+  - Improved memory management with efficient metric pruning
+  - Updated power metrics to use battery percentage as proxy
+  - Enhanced test suite with async-aware testing
+
+- Enhanced documentation across sampling system:
+  - Added comprehensive architectural overview in sampling modules
+  - Improved async examples with proper error handling
+  - Added thread safety and performance documentation
+  - Updated CPU module docs with async best practices
+  - Added integration examples between components
+  - Improved code examples in all modules
+  - Added clear separation between sync/async APIs
+  - Enhanced documentation for backend-agnostic design
+
+### 🗑️ Removed
+
+- Removed legacy sampling implementations:
+  - Removed `sampling_chronos.nim` in favor of new implementation
+  - Removed `sampling_core.nim` as part of architecture redesign
+  - Removed `sampling_stdlib.nim` to standardize on Chronos
 
 <!-- markdownlint-configure-file
 MD024:
