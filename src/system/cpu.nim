@@ -1,14 +1,14 @@
 ## CPU metrics module for Darwin systems
 ##
-## This module provides a high-level interface for retrieving CPU information
+## This module provides a high-level async interface for retrieving CPU information
 ## and metrics on Darwin-based systems (macOS). It supports both Intel and
 ## Apple Silicon architectures, providing accurate CPU statistics through
 ## the Mach kernel interfaces.
 ##
-## The module offers functionality for:
+## The module offers async functionality for:
 ## * CPU information (cores, architecture, model)
-## * CPU usage monitoring
-## * Frequency information
+## * Real-time CPU usage monitoring
+## * Frequency information (where available)
 ## * Load average tracking
 ## * Per-core statistics
 ##
@@ -16,23 +16,44 @@
 ##
 ## ```nim
 ## import darwinmetrics/system/cpu
+## import chronos
 ##
-## # Get detailed CPU information
-## let info = getCpuMetrics()
-## echo "CPU: ", info.brand
-## echo "Architecture: ", info.architecture
-## echo "Physical cores: ", info.physicalCores
+## proc main() {.async.} =
+##   # Get detailed CPU information
+##   let info = await getCpuMetrics()
+##   echo "CPU: ", info.brand
+##   echo "Architecture: ", info.architecture
+##   echo "Physical cores: ", info.physicalCores
 ##
-## # Monitor CPU usage
-## let usage = getCpuUsage()
-## echo "Total CPU usage: ", usage.total, "%"
-## echo "System: ", usage.system, "%"
-## echo "User: ", usage.user, "%"
+##   # Monitor CPU usage
+##   let usage = await getCpuUsage()
+##   echo "Total CPU usage: ", usage.total, "%"
+##   echo "System: ", usage.system, "%"
+##   echo "User: ", usage.user, "%"
 ##
-## # Track load averages
-## let history = newLoadHistory()
-## let load = await getLoadAverage()
-## echo "1-minute load: ", load.oneMinute
+##   # Track load averages
+##   let history = newLoadHistory()
+##   let load = await getLoadAverage()
+##   echo "1-minute load: ", load.oneMinute
+##
+##   # Start continuous monitoring
+##   let usageHistory = newCpuUsageHistory()
+##   asyncCheck startCpuUsageTracking(usageHistory)
+##
+## waitFor main()
+## ```
+##
+## Integration with Sampling System:
+## This module integrates with darwinmetrics' sampling system for automated
+## metric collection. See `sampling/metric_collector.nim` for details on
+## periodic sampling.
+##
+## ```nim
+## import darwinmetrics/internal/sampling/metric_collector
+##
+## let collector = newMetricCollector()
+## await collector.startPeriodicSampling(seconds(1)) do (snapshot: MetricSnapshot):
+##   echo "CPU Usage: ", snapshot.metrics["cpu"].value.cpuValue, "%"
 ## ```
 ##
 ## Note: Some features like current CPU frequency are not available in user mode
@@ -48,7 +69,9 @@ from ../internal/mach_stats import
 
 export cpu_types
 
-const DefaultMaxSamples = 60 # Keep 1 hour of samples at 1-minute intervals
+const
+  DefaultMaxSamples = 60  # Keep 1 hour of samples at 1-minute intervals
+  DefaultCpuSamples = 60  # Keep 1 minute of samples at 1-second intervals
 
 type
   LoadHistory* = ref object
@@ -57,11 +80,46 @@ type
     maxSamples: int
     lock: Lock
 
+  CpuStateTracker = object  # Changed to non-ref for GC-safety
+    lastInfo: HostCpuLoadInfo
+    isFirstCall: bool
+    lock: Lock
+
+  CpuUsageHistory* = ref object
+    ## Tracks CPU usage history with thread-safe access
+    samples: Deque[CpuUsage]
+    maxSamples: int
+    lock: Lock
+
+  PerCoreHistory* = ref object
+    ## Tracks per-core CPU load information history with thread-safe access
+    samples: Deque[seq[HostCpuLoadInfo]]
+    maxSamples: int
+    lock: Lock
+
+var
+  cpuState {.threadvar.}: CpuStateTracker
+  isInitialized {.threadvar.}: bool
+
+proc initCpuState() {.raises: [].} =
+  if not isInitialized:
+    cpuState.isFirstCall = true
+    initLock(cpuState.lock)
+    isInitialized = true
+
+initCpuState()
+
 proc maxSamples*(history: LoadHistory): int =
   ## Returns the maximum number of samples that can be stored in the history
   ## Thread-safe: Yes
   withLock history.lock:
     result = history.maxSamples
+
+proc len*(history: LoadHistory): int =
+  ## Returns the current number of samples in the history
+  ## Thread-safe: Yes
+  withLock history.lock:
+    result = history.samples.len
 
 proc validateCpuMetrics*(metrics: CpuMetrics) =
   ## Validates CPU metrics, raising DarwinError for invalid fields
@@ -210,31 +268,62 @@ proc calculateCpuUsage(prev, curr: HostCpuLoadInfo): CpuUsage =
       total: 0.0
     )
 
-var
-  lastCpuInfo: HostCpuLoadInfo # Store last CPU info for usage calculation
-  isFirstCall = true # Track first call to getCpuUsage
+proc newCpuUsageHistory*(maxSamples: int = DefaultCpuSamples): CpuUsageHistory =
+  ## Creates a new CPU usage history tracker
+  ## maxSamples determines how many samples to keep (default 60)
+  ## Thread-safe: Yes
+  result = CpuUsageHistory(
+    samples: initDeque[CpuUsage](),
+    maxSamples: maxSamples
+  )
+  initLock(result.lock)
 
-proc getCpuUsage*(): CpuUsage {.raises: [DarwinError].} =
-  ## Get current CPU usage information
+proc add*(history: CpuUsageHistory, usage: CpuUsage) =
+  ## Adds a CPU usage sample to the history
+  ## If the history is full, the oldest sample is removed
+  ## Thread-safe: Yes
+  withLock history.lock:
+    if history.samples.len >= history.maxSamples:
+      discard history.samples.popFirst()
+    history.samples.addLast(usage)
+
+proc len*(history: CpuUsageHistory): int =
+  ## Returns the number of samples in the history
+  ## Thread-safe: Yes
+  withLock history.lock:
+    result = history.samples.len
+
+proc maxSamples*(history: CpuUsageHistory): int =
+  ## Returns the maximum number of samples that can be stored
+  ## Thread-safe: Yes
+  withLock history.lock:
+    result = history.maxSamples
+
+proc getCpuUsage*(): Future[CpuUsage] {.async.} =
+  ## Get current CPU usage information asynchronously
   ## Returns percentages of time spent in different CPU states
+  ## Thread-safe: Yes
   ## Raises DarwinError if CPU information cannot be retrieved
   let currInfo = getHostCpuLoadInfo()
+  var result: CpuUsage
 
-  if isFirstCall:
-    isFirstCall = false
-    lastCpuInfo = currInfo
-    # On first call, assume system is idle to avoid bogus initial reading
-    result = CpuUsage(
-      user: 0.0,
-      system: 0.0,
-      idle: 100.0,
-      nice: 0.0,
-      total: 0.0
-    )
-  else:
-    result = calculateCpuUsage(lastCpuInfo, currInfo)
+  withLock cpuState.lock:
+    if cpuState.isFirstCall:
+      cpuState.isFirstCall = false
+      cpuState.lastInfo = currInfo
+      # On first call, assume system is idle
+      result = CpuUsage(
+        user: 0.0,
+        system: 0.0,
+        idle: 100.0,
+        nice: 0.0,
+        total: 0.0
+      )
+    else:
+      result = calculateCpuUsage(cpuState.lastInfo, currInfo)
+    cpuState.lastInfo = currInfo
 
-  lastCpuInfo = currInfo
+  return result
 
 proc validateLoadAverage(load: LoadAverage) =
   ## Validates load average values
@@ -306,7 +395,7 @@ proc getCpuMetrics*(): Future[CpuMetrics] {.async.} =
     brand = getCpuBrand(),
     frequency = getFrequencyInfo()
   )
-  result.usage = getCpuUsage()
+  result.usage = await getCpuUsage()
   result.loadAverage = await getLoadAverage()
   result.timestamp = getTime().toUnix * 1_000_000_000
 
@@ -361,14 +450,16 @@ proc startLoadTracking*(history: LoadHistory, interval = chronos.seconds(60)): F
     history.add(load)
     await chronos.sleepAsync(interval)
 
-proc getPerCoreCpuLoadInfo*(): seq[HostCpuLoadInfo] {.raises: [DarwinError].} =
-  ## Retrieves per-core CPU load information using Mach's host_processor_info.
-  ## Returns a sequence of HostCpuLoadInfo objects, one per CPU core.
-  var cpuInfoPtr: pointer = nil
-  var cpuCount: uint32 = 0
-  var infoCount: uint32 = 0
+proc getPerCoreCpuLoadInfo*(): Future[seq[HostCpuLoadInfo]] {.async.} =
+  ## Retrieves per-core CPU load information using Mach's host_processor_info
+  ## Returns a sequence of HostCpuLoadInfo objects, one per CPU core
+  ## Thread-safe: Yes
+  ## Raises DarwinError if CPU information cannot be retrieved
+  var
+    cpuInfoPtr: pointer = nil
+    cpuCount: uint32 = 0
+    infoCount: uint32 = 0
 
-  # Use the properly declared host_processor_info from mach_stats
   let kr = host_processor_info(
     mach_host_self(),
     PROCESSOR_CPU_LOAD_INFO.cint,
@@ -382,35 +473,85 @@ proc getPerCoreCpuLoadInfo*(): seq[HostCpuLoadInfo] {.raises: [DarwinError].} =
 
   var results: seq[HostCpuLoadInfo] = @[]
 
-  # Cast the void pointer to an array of uint32 values (the type returned by Mach)
-  let infoArr = cast[ptr UncheckedArray[uint32]](cpuInfoPtr)
+  try:
+    # Cast the void pointer to an array of uint32 values
+    let infoArr = cast[ptr UncheckedArray[uint32]](cpuInfoPtr)
 
-  # Each core returns 4 integers: user, system, idle, and nice tick counts.
-  for i in 0..<int(cpuCount):
-    let offset = i * 4
-    # No need for .float conversion, we access array directly
-    let userVal = infoArr[offset]
-    let systemVal = infoArr[offset + 1]
-    let idleVal = infoArr[offset + 2]
-    let niceVal = infoArr[offset + 3]
-
-    let coreInfo = HostCpuLoadInfo(
-      userTicks: [userVal, 0'u32, 0'u32, 0'u32],
-      systemTicks: [systemVal, 0'u32, 0'u32, 0'u32],
-      idleTicks: [idleVal, 0'u32, 0'u32, 0'u32],
-      niceTicks: [niceVal, 0'u32, 0'u32, 0'u32]
-    )
-    results.add(coreInfo)
-
-  # Free the memory allocated by host_processor_info using vm_deallocate
-  # On 64-bit systems, cast directly to uint64
-  let totalSize: uint64 = uint64(infoCount) * uint64(sizeof(uint32))
-  discard vm_deallocate(mach_host_self(), cast[uint64](cpuInfoPtr), totalSize)
+    # Each core returns 4 integers: user, system, idle, and nice tick counts
+    for i in 0..<int(cpuCount):
+      let offset = i * 4
+      let coreInfo = HostCpuLoadInfo(
+        userTicks: [infoArr[offset], 0'u32, 0'u32, 0'u32],
+        systemTicks: [infoArr[offset + 1], 0'u32, 0'u32, 0'u32],
+        idleTicks: [infoArr[offset + 2], 0'u32, 0'u32, 0'u32],
+        niceTicks: [infoArr[offset + 3], 0'u32, 0'u32, 0'u32]
+      )
+      results.add(coreInfo)
+  finally:
+    # Ensure memory is deallocated even if processing fails
+    if cpuInfoPtr != nil:
+      let totalSize: uint64 = uint64(infoCount) * uint64(sizeof(uint32))
+      discard vm_deallocate(mach_host_self(), cast[uint64](cpuInfoPtr), totalSize)
 
   return results
 
-proc len*(history: LoadHistory): int =
+proc startCpuUsageTracking*(history: CpuUsageHistory, interval = chronos.seconds(1)): Future[void] {.async.} =
+  ## Start tracking CPU usage at the specified interval
+  ## Stores samples in the provided history object
+  ## Thread-safe: Yes
+  ##
+  ## Example:
+  ## ```nim
+  ## let history = newCpuUsageHistory()
+  ## asyncCheck startCpuUsageTracking(history)
+  ## ```
+  while true:
+    let usage = await getCpuUsage()
+    history.add(usage)
+    await chronos.sleepAsync(interval)
+
+proc newPerCoreHistory*(maxSamples: int = DefaultCpuSamples): PerCoreHistory =
+  ## Creates a new per-core CPU load history tracker
+  ## maxSamples determines how many samples to keep (default 60)
+  ## Thread-safe: Yes
+  result = PerCoreHistory(
+    samples: initDeque[seq[HostCpuLoadInfo]](),
+    maxSamples: maxSamples
+  )
+  initLock(result.lock)
+
+proc add*(history: PerCoreHistory, info: seq[HostCpuLoadInfo]) =
+  ## Adds a per-core CPU load sample to the history
+  ## If the history is full, the oldest sample is removed
+  ## Thread-safe: Yes
+  withLock history.lock:
+    if history.samples.len >= history.maxSamples:
+      discard history.samples.popFirst()
+    history.samples.addLast(info)
+
+proc len*(history: PerCoreHistory): int =
   ## Returns the number of samples in the history
   ## Thread-safe: Yes
   withLock history.lock:
     result = history.samples.len
+
+proc maxSamples*(history: PerCoreHistory): int =
+  ## Returns the maximum number of samples that can be stored
+  ## Thread-safe: Yes
+  withLock history.lock:
+    result = history.maxSamples
+
+proc startPerCoreTracking*(history: PerCoreHistory, interval = chronos.seconds(1)): Future[void] {.async.} =
+  ## Start tracking per-core CPU load information at the specified interval
+  ## Stores samples in the provided history object
+  ## Thread-safe: Yes
+  ##
+  ## Example:
+  ## ```nim
+  ## let history = newPerCoreHistory()
+  ## asyncCheck startPerCoreTracking(history)
+  ## ```
+  while true:
+    let info = await getPerCoreCpuLoadInfo()
+    history.add(info)
+    await chronos.sleepAsync(interval)

@@ -16,48 +16,76 @@
 - [x] 🖥️ CPU:
   - [x] Load average monitoring (1/5/15-minute)
   - [x] Per-core usage stats
-  - [x] Frequency info
-  - [x] Thread-safe, async-compatible
+  - [x] Frequency info (nominal, min, max)
+  - [x] Thread-safe history tracking
+  - [x] Async-first design with Chronos
 - [x] 💾 Memory:
-  - [x] RAM and swap statistics
-- [ ] 🔋 Power:
-  - [ ] Battery state, charging status, health, time estimate
+  - [x] Physical memory statistics
+  - [x] Memory pressure monitoring
+  - [x] Page-level memory details
+  - [x] Process memory tracking
+  - [x] Thread-safe operations
+- [x] 🔋 Power:
+  - [x] Battery state and charging status
+  - [x] Battery health and capacity
+  - [x] Time estimates (remaining/to full)
+  - [x] Thermal pressure monitoring
+  - [x] Low power mode detection
 - [ ] 🌡️ Temperature:
   - [ ] CPU/GPU thermal sensors (SMC)
   - [ ] Fan speeds
 - [ ] 📡 Network:
-  - [ ] Interface enumeration, traffic stats
+  - [ ] Interface enumeration
+  - [ ] Traffic statistics
+  - [ ] Interface types and states
 - [ ] 🧵 Process:
-  - [ ] Per-process usage, uptime, hierarchy
+  - [ ] Process metrics and resources
+  - [ ] Thread counts and states
+  - [ ] File descriptor tracking
 - [ ] 📊 Disk:
-  - [ ] Space usage and I/O
+  - [ ] Volume information
+  - [ ] Space usage tracking
+  - [ ] I/O statistics
 
 ---
 
 ## 🚀 Quick Start
 
 ```nim
-import darwinmetrics
-import asyncdispatch
+import darwinmetrics/system/[cpu, memory, power]
+import chronos
 
-# Get CPU information
-let cpuInfo = getCpuInfo()
-echo "CPU cores: ", cpuInfo.physicalCores, " physical, ", cpuInfo.logicalCores, " logical"
-echo "CPU usage: ", cpuInfo.usage.total, "% (", cpuInfo.usage.user, "% user, ", cpuInfo.usage.system, "% system)"
+proc main() {.async.} =
+  # Get CPU metrics
+  let cpuMetrics = await getCpuMetrics()
+  echo "CPU cores: ", cpuMetrics.physicalCores, " physical, ", cpuMetrics.logicalCores, " logical"
+  echo "CPU usage: ", cpuMetrics.usage.total, "% (", cpuMetrics.usage.user, "% user, ", cpuMetrics.usage.system, "% system)"
+  echo "Load average (1min): ", cpuMetrics.loadAverage.oneMinute
 
-# Get per-core CPU metrics
-let coreStats = getPerCoreCpuLoadInfo()
-echo "Per-core stats for ", coreStats.len, " cores:"
-for i, core in coreStats:
-  echo "  Core ", i, ": user=", core.userTicks[0], ", system=", core.systemTicks[0]
+  # Get memory metrics
+  let memMetrics = getMemoryMetrics()
+  echo "Memory: ", memMetrics.usedPhysical div GB, "GB used of ", memMetrics.totalPhysical div GB, "GB total"
+  echo "Memory pressure: ", memMetrics.pressureLevel
 
-# Load averages with async support
-let loadAvg = waitFor getLoadAverageAsync()
-echo "Load averages: ", loadAvg.oneMinute, " (1m), ", loadAvg.fiveMinute, " (5m), ", loadAvg.fifteenMinute, " (15m)"
+  # Get power metrics
+  let powerMetrics = getPowerMetrics()
+  if powerMetrics.isPresent:
+    echo "Battery: ", powerMetrics.percentRemaining, "%"
+    echo "Status: ", powerMetrics.status
+    if powerMetrics.timeRemaining.isSome:
+      echo "Time remaining: ", powerMetrics.timeRemaining.get(), " minutes"
+    echo "Thermal state: ", powerMetrics.thermalPressure
 
-# Use the load history for tracking changes over time
-var history = newLoadHistory(maxSamples = 60)  # Keep 60 most recent samples
-history.add(loadAvg)
+  # Use history tracking
+  let
+    cpuHistory = newCpuUsageHistory()
+    loadHistory = newLoadHistory()
+
+  # Start background tracking
+  asyncCheck startCpuUsageTracking(cpuHistory)
+  asyncCheck startLoadTracking(loadHistory)
+
+waitFor main()
 ```
 
 ---
@@ -74,15 +102,18 @@ darwinmetrics/
 │   ├── darwinmetrics.nim        # Public API entry
 │   ├── system/                  # System metrics modules
 │   │   ├── cpu.nim              # CPU metrics (complete)
-│   │   ├── memory.nim           # Memory metrics
-│   │   ├── disk.nim             # Disk metrics
-│   │   ├── network.nim          # Network metrics
-│   │   ├── power.nim            # Power metrics
-│   │   └── process.nim          # Process metrics
+│   │   ├── memory.nim           # Memory metrics (complete)
+│   │   ├── power.nim            # Power metrics (complete)
+│   │   ├── disk.nim             # Disk metrics (planned)
+│   │   ├── network.nim          # Network metrics (planned)
+│   │   └── process.nim          # Process metrics (planned)
 │   ├── internal/                # Internal implementation
 │   │   ├── mach_stats.nim       # Mach kernel interfaces
 │   │   ├── platform_darwin.nim  # Darwin platform detection
 │   │   ├── darwin_errors.nim    # Error types
+│   │   ├── cpu_types.nim        # CPU type definitions
+│   │   ├── memory_types.nim     # Memory type definitions
+│   │   ├── power_types.nim      # Power type definitions
 │   │   └── utils.nim            # Utility functions
 │   └── doctools/                # Documentation tools
 │       ├── sync.nim             # Doc sync library
@@ -90,6 +121,8 @@ darwinmetrics/
 ├── tests/                       # Test suite
 │   ├── test_cpu.nim             # CPU module tests
 │   ├── test_system_cpu.nim      # System CPU tests
+│   ├── test_memory.nim          # Memory module tests
+│   ├── test_power.nim           # Power module tests
 │   ├── test_docsync.nim         # Documentation tool tests
 │   └── test_all.nim             # Combined test runner
 ├── darwinmetrics.nimble         # Nimble package file
@@ -102,6 +135,7 @@ darwinmetrics/
 
 - macOS 12.0 or newer (Darwin 21+)
 - Nim 2.2.2+
+- Chronos 3.2.0+
 - Xcode Command Line Tools (`xcode-select --install`)
 
 ---
@@ -145,6 +179,8 @@ nimble test
 - Lint: `nim check` / `staticcheck`
 - Coverage: Codecov
 - GC: ORC by default
+- Thread Safety: All metrics modules are thread-safe
+- Async Support: Chronos-based async operations
 
 ---
 

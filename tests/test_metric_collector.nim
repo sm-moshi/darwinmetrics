@@ -6,7 +6,7 @@ import ../src/internal/sampling/[types, metric_collector]
 suite "Metric Collector":
   test "MetricCollector creation":
     let collector = newMetricCollector()
-    check collector.timeout == types.seconds(5)  # Default timeout
+    check collector.timeout == types.seconds(5) # Default timeout
 
     let customCollector = newMetricCollector(types.seconds(10))
     check customCollector.timeout == types.seconds(10)
@@ -41,7 +41,7 @@ suite "Metric Collector":
 
   asyncTest "Process metric collection":
     let collector = newMetricCollector()
-    let pid: int32 = 1  # System process
+    let pid: int32 = 1 # System process
     let result = await collector.collectProcess(pid)
 
     check result.value.kind == mkProcess
@@ -52,7 +52,7 @@ suite "Metric Collector":
     let collector = newMetricCollector()
     let snapshot = await collector.collectAll()
 
-    check snapshot.metrics.len >= 3  # At least CPU, memory, and power
+    check snapshot.metrics.len >= 3 # At least CPU, memory, and power
     check "cpu" in snapshot.metrics
     check "memory" in snapshot.metrics
     check "power" in snapshot.metrics
@@ -74,7 +74,7 @@ suite "Metric Collector":
     check powerMetric.value.powerWatts >= 0.0
 
   asyncTest "Error handling in collection":
-    let collector = newMetricCollector(types.milliseconds(1))  # Very short timeout
+    let collector = newMetricCollector(types.milliseconds(1)) # Very short timeout
     let snapshot = await collector.collectAll()
 
     # Even with errors, we should get a valid snapshot
@@ -87,7 +87,8 @@ suite "Metric Collector":
     var lastCpuValue = 0.0
 
     # Start sampling every 100ms
-    let samplingFuture = collector.startPeriodicSampling(types.milliseconds(100)) do (snapshot: MetricSnapshot):
+    let samplingFuture = collector.startPeriodicSampling(types.milliseconds(
+        100)) do (snapshot: MetricSnapshot):
       inc sampleCount
       if "cpu" in snapshot.metrics:
         lastCpuValue = snapshot.metrics["cpu"].value.cpuValue
@@ -107,8 +108,9 @@ suite "Metric Collector":
     var successCount = 0
 
     # Start sampling with a callback that sometimes fails
-    let samplingFuture = collector.startPeriodicSampling(types.milliseconds(100)) do (snapshot: MetricSnapshot):
-      if successCount == 1:  # Fail on second sample
+    let samplingFuture = collector.startPeriodicSampling(types.milliseconds(
+        100)) do (snapshot: MetricSnapshot):
+      if successCount == 1: # Fail on second sample
         inc errorCount
         raise newException(ValueError, "Test error")
       else:
@@ -118,8 +120,8 @@ suite "Metric Collector":
     await sleepAsync(chronos.milliseconds(250))
     await collector.stopSampling()
 
-    check errorCount >= 1  # At least one error occurred
-    check successCount >= 1  # At least one success
+    check errorCount >= 1 # At least one error occurred
+    check successCount >= 1 # At least one success
     check not collector.isSampling
 
   asyncTest "Multiple start/stop cycles":
@@ -127,18 +129,20 @@ suite "Metric Collector":
     var sampleCount = 0
 
     # First cycle
-    let future1 = collector.startPeriodicSampling(types.milliseconds(100)) do (snapshot: MetricSnapshot):
+    let future1 = collector.startPeriodicSampling(types.milliseconds(100)) do (
+      snapshot: MetricSnapshot):
       inc sampleCount
     await sleepAsync(chronos.milliseconds(150))
     await collector.stopSampling()
     let count1 = sampleCount
 
     # Second cycle
-    let future2 = collector.startPeriodicSampling(types.milliseconds(100)) do (snapshot: MetricSnapshot):
+    let future2 = collector.startPeriodicSampling(types.milliseconds(100)) do (
+      snapshot: MetricSnapshot):
       inc sampleCount
     await sleepAsync(chronos.milliseconds(150))
     await collector.stopSampling()
 
-    check count1 >= 1  # First cycle collected samples
-    check sampleCount > count1  # Second cycle added more samples
+    check count1 >= 1 # First cycle collected samples
+    check sampleCount > count1 # Second cycle added more samples
     check not collector.isSampling

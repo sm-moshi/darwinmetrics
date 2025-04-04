@@ -159,9 +159,24 @@ This document outlines the planned implementation steps for the `darwinmetrics` 
 ## ✍️ Documentation
 
 - [x] Generate Nim docs via `nim doc` or `nimble docs`
-- [~] Write per-module documentation
+- [x] Write per-module documentation
+  - [x] CPU module documentation with async examples
+  - [x] Sampling system architectural overview
+  - [x] Core module backend-agnostic design
+  - [x] Metric collector usage patterns
+  - [ ] Power module documentation
+  - [ ] Memory module documentation
+  - [ ] Process module documentation
 - [ ] Add examples in `examples/` (e.g., simple usage CLI)
-- [ ] Link back to Rust and Go versions for context
+  - [ ] Basic metrics collection example
+  - [ ] Async sampling example
+  - [ ] Error handling patterns
+  - [ ] Integration with monitoring systems
+- [x] Link back to Rust and Go versions for context
+- [x] Add comprehensive async usage documentation
+- [x] Document thread safety considerations
+- [x] Add performance optimization notes
+- [x] Document integration patterns between modules
 
 ---
 
