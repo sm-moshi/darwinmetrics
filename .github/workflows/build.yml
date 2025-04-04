@@ -43,10 +43,15 @@ jobs:
         with:
           nim-version: ${{ matrix.nim-version }}
 
+      - name: Install Dependencies
+        run: |
+          nimble refresh
+          nimble install -y --verbose
+          nimble develop -y
+
       - name: Build & Test
         run: |
-          nimble install -y
-          nimble test -d:noThreads -y
+          nimble test -d:noThreads -y --verbose
 
       - name: Prepare Release Assets
         if: matrix.is-release
