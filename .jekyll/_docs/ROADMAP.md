@@ -34,19 +34,26 @@ This document defines the long-term development goals and phased milestones for 
 - [x] Memory:
   - [x] RAM + Swap
   - [x] Pressure (if available)
-- [ ] Power:
-  - [ ] Battery state, charge, time remaining
+- [x] Power:
+  - [x] Battery state, charge, time remaining
+  - [x] Power source detection
+  - [x] Thermal pressure monitoring
+  - [x] Battery health information
 
 ---
 
-## 📍 Phase 3: Async Sampling & Struct Design
+## 📍 Phase 3: Async Sampling & Struct Design ✅
 
 🎯 Goal: Add async interfaces and shared metric model structures
 
-- [ ] Define `MetricResult` / `MetricSnapshot` types
-- [ ] Build async polling helpers
-- [ ] Add cancellation support
-- [ ] Enable periodic sampling for all core metrics
+- [x] Define `MetricResult` / `MetricSnapshot` types
+- [x] Build async polling helpers
+- [x] Add cancellation support
+- [x] Enable periodic sampling for all core metrics
+- [x] Document async patterns and best practices
+- [x] Add comprehensive integration examples
+- [x] Document thread safety considerations
+- [x] Add performance optimization guidelines
 
 ---
 
@@ -88,6 +95,11 @@ This document defines the long-term development goals and phased milestones for 
 🎯 Goal: Clean up, document, and publish usable version
 
 - [x] Write `README.md`, `CHANGELOG.md`, and module-level docs
+  - [x] CPU module documentation with async examples
+  - [x] Sampling system architectural overview
+  - [x] Core module backend-agnostic design
+  - [x] Metric collector usage patterns
+  - [ ] Complete remaining module documentation
 - [ ] 100% test coverage on CI for macOS
 - [ ] Release `v0.1.0` via GitHub
 - [ ] Tag as parity-complete with Rust/Go versions

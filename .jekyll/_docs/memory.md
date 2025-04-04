@@ -13,10 +13,10 @@ The Memory metrics module provides detailed information about your system's memo
 import darwinmetrics/system/memory
 
 # Get system memory statistics
-let stats = getMemoryStats()
-echo "Total RAM: ", stats.totalPhysical div GB, " GB"
-echo "Available: ", stats.availablePhysical div GB, " GB"
-echo "Used: ", stats.usedPhysical div GB, " GB"
+let metrics = getMemoryMetrics()
+echo "Total RAM: ", metrics.totalPhysical div GB, " GB"
+echo "Available: ", metrics.availablePhysical div GB, " GB"
+echo "Used: ", metrics.usedPhysical div GB, " GB"
 
 # Check memory pressure
 let pressure = getMemoryPressureLevel()
@@ -33,20 +33,21 @@ echo "Process RSS: ", procInfo.residentSize div MB, " MB"
 
 ## 📊 Memory Statistics
 
-The `MemoryStats` object provides comprehensive system memory information:
+The `MemoryMetrics` object provides comprehensive system memory information:
 
 ```nim
-type MemoryStats* = object
+type MemoryMetrics* = object
   totalPhysical*: uint64      ## Total physical memory in bytes
   availablePhysical*: uint64  ## Available physical memory in bytes
   usedPhysical*: uint64       ## Used physical memory in bytes
-  pressureLevel*: MemoryPressureLevel  ## Current memory pressure level
+  pressureLevel*: MemoryPressure  ## Current memory pressure level
   pageSize*: uint32           ## System page size in bytes
   pagesFree*: uint64         ## Number of free pages
   pagesActive*: uint64       ## Number of active pages in use
   pagesInactive*: uint64     ## Number of inactive pages that can be reclaimed
   pagesWired*: uint64        ## Number of wired (locked) pages
   pagesCompressed*: uint64   ## Number of compressed pages
+  timestamp*: int64          ## When these metrics were collected (nanoseconds)
 ```
 
 ### 🔍 Field Details
@@ -61,6 +62,7 @@ type MemoryStats* = object
 - `pagesInactive`: Pages that can be reclaimed if needed
 - `pagesWired`: Pages locked in memory (cannot be paged out)
 - `pagesCompressed`: Pages in the compression pool
+- `timestamp`: Unix timestamp in nanoseconds when metrics were collected
 
 ## 🎯 Process Memory Information
 
@@ -123,6 +125,10 @@ The memory module ensures thread-safe operation:
 
 The module implements robust error handling:
 
+```nim
+type MemoryError* = object of Exception
+```
+
 - Memory-related errors are captured in `MemoryError`
 - Invalid memory statistics raise descriptive errors
 - Process information failures include error codes
@@ -134,12 +140,12 @@ The module implements robust error handling:
 ### 🔍 Basic Memory Information
 
 ```nim
-let stats = getMemoryStats()
+let metrics = getMemoryMetrics()
 echo "Memory Usage:"
-echo "  Total: ", stats.totalPhysical div GB, " GB"
-echo "  Available: ", stats.availablePhysical div GB, " GB"
-echo "  Used: ", stats.usedPhysical div GB, " GB"
-echo "  Pressure: ", stats.pressureLevel
+echo "  Total: ", metrics.totalPhysical div GB, " GB"
+echo "  Available: ", metrics.availablePhysical div GB, " GB"
+echo "  Used: ", metrics.usedPhysical div GB, " GB"
+echo "  Pressure: ", metrics.pressureLevel
 ```
 
 ### 📊 Process Memory Tracking

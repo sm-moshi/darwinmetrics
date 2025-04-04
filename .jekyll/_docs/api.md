@@ -11,20 +11,20 @@ The DarwinMetrics API is designed to be safe, efficient, and thread-aware. All f
 ### CPU Information
 
 ```nim
-proc getCpuInfo*(): CpuInfo {.raises: [DarwinError, DarwinVersionError].}
+proc getCpuMetrics*(): Future[CpuMetrics] {.async.}
 ```
 
-Returns detailed CPU information including architecture, cores, frequency, and current usage.
+Returns detailed CPU metrics for the current system, including architecture, cores, frequency, current usage, and load averages.
 Supports both Apple Silicon and Intel processors.
 
 ```nim
-proc getCpuUsage*(): CpuUsage {.raises: [DarwinError].}
+proc getCpuUsage*(): Future[CpuUsage] {.async.}
 ```
 
 Returns current CPU usage percentages across different states (user, system, idle, nice).
 
 ```nim
-proc getPerCoreCpuLoadInfo*(): seq[HostCpuLoadInfo] {.raises: [DarwinError].}
+proc getPerCoreCpuLoadInfo*(): Future[seq[HostCpuLoadInfo]] {.async.}
 ```
 
 Returns per-core CPU load information, with user/system/idle/nice tick counts for each CPU core.
@@ -33,13 +33,13 @@ Correctly manages memory allocated by Mach kernel functions.
 ### Load Average Monitoring
 
 ```nim
-proc getLoadAverageAsync*(): Future[LoadAverage]
+proc getLoadAverage*(): Future[LoadAverage] {.async.}
 ```
 
 Asynchronously retrieves current system load averages. Thread-safe.
 
 ```nim
-proc startLoadMonitoring*(history: LoadHistory, interval: float = 60.0): Future[void]
+proc startLoadTracking*(history: LoadHistory, interval = chronos.seconds(60)): Future[void] {.async.}
 ```
 
 Starts monitoring load averages at the specified interval, storing samples in the provided history.
@@ -59,31 +59,76 @@ Adds a load average sample to the history in a thread-safe manner.
 ### Memory Statistics
 
 ```nim
-proc getMemoryInfo*(): MemoryInfo
+proc getMemoryMetrics*(): MemoryMetrics {.raises: [ref MemoryError].}
 ```
 
 Returns system memory statistics including RAM and swap usage.
 
+```nim
+proc getProcessMemoryInfo*(): ProcessMemoryInfo {.raises: [ref MemoryError].}
+```
+
+Returns memory information for the current process.
+
+```nim
+proc getMemoryPressureLevel*(): MemoryPressure {.raises: [].}
+```
+
+Returns the current memory pressure level of the system.
+
 ### Power Management
 
 ```nim
-proc getPowerInfo*(): PowerInfo
+proc getPowerMetrics*(): PowerMetrics {.raises: [].}
 ```
 
-Returns power-related information including battery status and charging state.
-
-### Temperature Sensors
+Returns comprehensive power and battery information including battery presence, charge level,
+power source, charging status, and estimated times for battery operation.
 
 ```nim
-proc getTemperature*(): TempInfo
+proc getBatteryPercentage*(): float {.raises: [].}
 ```
 
-Returns temperature readings from various system sensors.
+Returns the current battery percentage (0-100). On systems without batteries, returns 0.0.
+
+```nim
+proc isPowerAdapterConnected*(): bool {.raises: [].}
+```
+
+Checks if the system is connected to an external power source.
+Returns true if on AC power, false if on battery.
+
+```nim
+proc getRemainingTime*(): Option[int] {.raises: [].}
+```
+
+Returns the estimated time remaining in minutes for battery operation.
+If the system is on AC power or has no battery, returns None.
+
+```nim
+proc getBatteryHealth*(): Option[BatteryHealth] {.raises: [].}
+```
+
+Returns battery health information if available, including cycle count, condition, and capacity metrics.
+
+```nim
+proc getThermalPressureLevel*(): ThermalPressure {.raises: [].}
+```
+
+Returns the current thermal pressure level, indicating if the system is experiencing thermal issues.
+
+### Disk Operations
+
+```nim
+proc getDiskMetrics*(): Future[DiskMetrics] {.async.}
+```
+
+Returns disk usage and performance information for all mounted volumes.
 
 ### Network Statistics
 
 ```nim
-proc getNetworkInfo*(): NetworkInfo
+proc getNetworkMetrics*(): Future[NetworkMetrics] {.async.}
 ```
 
 Returns network interface statistics and traffic information.
@@ -91,17 +136,17 @@ Returns network interface statistics and traffic information.
 ### Process Information
 
 ```nim
-proc getProcessInfo*(pid: int): ProcessInfo
+proc getProcessMetrics*(): Future[ProcessMetrics] {.async.}
 ```
 
-Returns detailed information about a specific process.
+Returns detailed information about processes including resource usage.
 
 ## 📊 Types
 
-### CpuInfo
+### CpuMetrics
 
 ```nim
-type CpuInfo* = object
+type CpuMetrics* = object
   physicalCores*: int          ## Number of physical CPU cores
   logicalCores*: int           ## Number of logical CPU cores (including hyperthreading)
   architecture*: string        ## CPU architecture (e.g., "arm64" or "x86_64")
@@ -109,6 +154,8 @@ type CpuInfo* = object
   brand*: string              ## CPU brand string
   frequency*: CpuFrequency    ## CPU frequency information
   usage*: CpuUsage           ## Current CPU usage information
+  loadAverage*: LoadAverage  ## Current load average information
+  timestamp*: int64          ## Timestamp in nanoseconds
 ```
 
 ### CpuFrequency
@@ -151,10 +198,88 @@ type LoadHistory* = ref object
   # Thread synchronization handled internally with locks
 ```
 
+### PowerMetrics
+
+```nim
+type PowerMetrics* = object
+  isPresent*: bool         ## Whether battery is present
+  status*: PowerStatus     ## Current power status
+  source*: PowerSource     ## Current power source
+  percentRemaining*: float ## Battery percentage (0-100)
+  timeRemaining*: Option[int] ## Estimated minutes remaining on battery
+  timeToFull*: Option[int] ## Estimated minutes until full charge
+  health*: Option[BatteryHealth] ## Battery health if available
+  isLowPower*: bool        ## Whether low power mode is active
+  thermalPressure*: ThermalPressure ## Current thermal pressure level
+  timestamp*: int64        ## Timestamp in nanoseconds
+```
+
+### PowerStatus
+
+```nim
+type PowerStatus* = enum
+  Charging        ## Battery is currently charging
+  Discharging     ## Battery is discharging (on battery power)
+  Full            ## Battery is fully charged
+  ACPowered       ## System is AC powered with no battery
+  Unknown         ## Status cannot be determined
+```
+
+### PowerSource
+
+```nim
+type PowerSource* = enum
+  Battery         ## Running on battery power
+  AC              ## Running on AC power (mains electricity)
+  UPS             ## Running on uninterruptible power supply
+  Unknown         ## Power source cannot be determined
+```
+
+### BatteryHealth
+
+```nim
+type BatteryHealth* = object
+  cycleCount*: int         ## Battery charge cycles completed
+  condition*: string       ## Condition (Normal, Poor, etc.)
+  temperature*: float      ## Battery temperature in °C if available
+  designCapacity*: int     ## Design capacity in mAh
+  currentCapacity*: int    ## Current maximum capacity in mAh
+  maxCapacity*: int        ## Maximum capacity in mAh
+```
+
+### ThermalPressure
+
+```nim
+type ThermalPressure* = enum
+  Normal          ## System thermal state is normal
+  Moderate        ## System under moderate thermal pressure
+  Heavy           ## System under heavy thermal pressure
+  Critical        ## System experiencing critical thermal issues
+  Unknown         ## Thermal state cannot be determined
+```
+
+### MemoryMetrics
+
+```nim
+type MemoryMetrics* = object
+  totalPhysical*: uint64     ## Total physical memory in bytes
+  availablePhysical*: uint64 ## Available physical memory in bytes
+  usedPhysical*: uint64      ## Used physical memory in bytes
+  pressureLevel*: MemoryPressure  ## Current memory pressure level
+  pageSize*: uint32          ## System page size in bytes
+  pagesFree*: uint64        ## Number of free pages
+  pagesActive*: uint64      ## Number of active pages in use
+  pagesInactive*: uint64    ## Number of inactive pages that can be reclaimed
+  pagesWired*: uint64       ## Number of wired (locked) pages
+  pagesCompressed*: uint64  ## Number of compressed pages
+  timestamp*: int64         ## When these metrics were collected (nanoseconds)
+```
+
 ## 🛠️ Constants
 
 ```nim
 const DefaultMaxSamples* = 60  ## Default number of load average samples to keep
+const DefaultCpuSamples* = 60  ## Default number of CPU usage samples to keep
 ```
 
 ## ⚠️ Error Types
@@ -165,10 +290,14 @@ type DarwinError* = object of Exception
 
 type DarwinVersionError* = object of Exception
   ## Raised when running on an unsupported Darwin version
+
+type MemoryError* = ref object of Exception
+  ## Raised when a memory-related operation fails
 ```
 
 ## 🔗 See Also
 
 - [💻 CPU Metrics Documentation](./cpu.html)
-- [📊 System Metrics Overview](./metrics.html)
+- [🔋 Power Metrics Documentation](./power.html)
+- [💾 Memory Metrics Documentation](./memory.html)
 - [⚙️ Configuration Options](./configuration.html)

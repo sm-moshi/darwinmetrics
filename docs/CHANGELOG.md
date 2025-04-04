@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.7] - 2024-04-01
+
+### Added
+
+- Comprehensive power monitoring module:
+  - Battery status and charge level detection
+  - Power source identification (AC/battery/UPS)
+  - Remaining time and battery health metrics
+  - Thermal pressure level detection
+  - Low power mode information
+  - Time remaining and time to full charge estimates
+  - Battery cycle count and condition reporting
+  - Clean public API with full documentation
+- Enhanced testing:
+  - Stress testing for stability
+  - Logical consistency validation
+  - Data format validation
+  - Cross-check testing between different metrics
+
+### Changed
+
+- Improved IOKit and CoreFoundation bindings
+- Enhanced error handling for battery-related operations
+- Added safer memory management for C types
+
 ## [0.0.6] - 2024-04-01
 
 ### Added
@@ -149,12 +174,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Planned
+### Added
 
-- Add real metric collection for all modules
-- Complete test coverage
-- Add async sampling support
-- Add exporters (Prometheus, InfluxDB)
+- Implemented robust Chronos-based metric collection system:
+  - Added `MetricCollector` type with configurable timeouts and error handling
+  - Implemented async collection methods for CPU, memory, power, and process metrics
+  - Added parallel collection via `collectAll` for efficient metric gathering
+  - Introduced periodic sampling with configurable intervals
+  - Added comprehensive error handling and propagation
+  - Added proper cleanup and cancellation in async operations
+  - Added type-safe metric value handling with proper timestamps
+  - Added snapshot retention with configurable limits
+  - Added proper timeout handling (5s default)
+  - Added comprehensive test coverage for all scenarios
+
+### Changed
+
+- Refactored metric collection architecture:
+  - Moved to Chronos-based async implementation for better performance
+  - Enhanced error context with metric-specific information
+  - Improved memory management with efficient metric pruning
+  - Updated power metrics to use battery percentage as proxy
+  - Enhanced test suite with async-aware testing
+
+- Enhanced documentation across sampling system:
+  - Added comprehensive architectural overview in sampling modules
+  - Improved async examples with proper error handling
+  - Added thread safety and performance documentation
+  - Updated CPU module docs with async best practices
+  - Added integration examples between components
+  - Improved code examples in all modules
+  - Added clear separation between sync/async APIs
+  - Enhanced documentation for backend-agnostic design
+
+### Removed
+
+- Removed legacy sampling implementations:
+  - Removed `sampling_chronos.nim` in favor of new implementation
+  - Removed `sampling_core.nim` as part of architecture redesign
+  - Removed `sampling_stdlib.nim` to standardize on Chronos
 
 <!-- markdownlint-configure-file
 MD024:

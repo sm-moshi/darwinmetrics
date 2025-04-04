@@ -5,6 +5,7 @@
 import unittest
 ## import std/strformat
 import ../src/system/memory
+import ../src/internal/memory_types
 
 {.emit: """/*INCLUDESECTION*/
 #include <mach/mach.h>
@@ -13,8 +14,8 @@ import ../src/system/memory
 #include <sys/sysctl.h>
 """.}
 
-test "getMemoryStats returns valid stats":
-  let stats = getMemoryStats()
+test "getMemoryMetrics returns valid stats":
+  let stats = getMemoryMetrics()
   check stats.totalPhysical > 0
   check stats.availablePhysical > 0
   check stats.usedPhysical > 0
@@ -32,8 +33,8 @@ test "getMemoryPressureLevel returns valid level":
   check level in {Normal, Warning, Critical, Error}
 
 suite "Memory API Tests":
-  test "getMemoryStats returns valid stats":
-    let stats = getMemoryStats()
+  test "getMemoryMetrics returns valid stats":
+    let stats = getMemoryMetrics()
     check:
       stats.totalPhysical > 0'u64
       stats.availablePhysical > 0'u64
@@ -68,7 +69,7 @@ suite "Memory API Tests":
       TB == GB * 1024'u64
 
   test "Memory stats fields are properly populated":
-    let stats = getMemoryStats()
+    let stats = getMemoryMetrics()
     check:
       stats.pagesFree * uint64(stats.pageSize) <= stats.totalPhysical
       stats.pagesActive * uint64(stats.pageSize) <= stats.totalPhysical

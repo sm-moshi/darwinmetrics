@@ -51,6 +51,12 @@ type
     pagesInactive*: uint64    ## Number of inactive pages that can be reclaimed
     pagesWired*: uint64       ## Number of wired (locked) pages that cannot be paged out
     pagesCompressed*: uint64  ## Number of compressed pages in the compression pool
+    pageIns*: int64           ## Page-ins since boot
+    pageOuts*: int64          ## Page-outs since boot
+    swapTotal*: uint64        ## Total swap space in bytes
+    swapUsed*: uint64         ## Used swap space in bytes
+    swapFree*: uint64         ## Free swap space in bytes
+    timestamp*: int64         ## Timestamp when metrics were collected (nanoseconds)
 
   TaskMemoryInfo* = object
     ## Memory information for a specific task/process.
@@ -60,6 +66,17 @@ type
     virtualSize*: uint64      ## Total virtual memory size in bytes
     residentSize*: uint64     ## Current resident (physical) memory size in bytes
     residentSizeMax*: uint64  ## Peak resident memory size in bytes
+
+  MemoryMetrics* = object
+    ## Complete memory metrics including system-wide memory statistics
+    ## and process memory information.
+    ##
+    ## This type combines all memory-related metrics into a single snapshot,
+    ## including both system-wide memory statistics and process-specific
+    ## memory information.
+    memoryStats*: MemoryStats          ## System-wide memory statistics
+    processMemory*: TaskMemoryInfo     ## Process-specific memory information
+    timestamp*: int64                  ## When these metrics were collected (nanoseconds)
 
   MachVMStatistics* = object
     ## Low-level virtual memory statistics from the Mach kernel.

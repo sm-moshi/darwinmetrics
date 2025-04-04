@@ -11,27 +11,40 @@ The CPU metrics module provides detailed information about your system's CPU, in
 
 ```nim
 import darwinmetrics/system/cpu
+import chronos
 
-# Get CPU information
-let info = getCpuInfo()
-echo info
+proc main() {.async.} =
+  # Get CPU metrics
+  let metrics = await getCpuMetrics()
+  echo metrics
 
-# Get load averages
-let load = getLoadAverageAsync().await
-echo load
+  # Get CPU usage
+  let usage = await getCpuUsage()
+  echo "Total CPU usage: ", usage.total, "%"
 
-# Monitor per-core statistics
-let coreStats = getPerCoreCpuLoadInfo()
-for i, core in coreStats:
-  echo "Core ", i, " usage: ", core
+  # Monitor per-core statistics
+  let coreStats = await getPerCoreCpuLoadInfo()
+  for i, core in coreStats:
+    echo "Core ", i, " usage: ", core
+
+  # Track load averages
+  let history = newLoadHistory()
+  let load = await getLoadAverage()
+  echo "1-minute load: ", load.oneMinute
+
+  # Start continuous monitoring
+  let usageHistory = newCpuUsageHistory()
+  asyncCheck startCpuUsageTracking(usageHistory)
+
+waitFor main()
 ```
 
-## 📊 CPU Information
+## 📊 CPU Metrics
 
-The `CpuInfo` object provides comprehensive CPU details:
+The `CpuMetrics` object provides comprehensive CPU details:
 
 ```nim
-type CpuInfo* = object
+type CpuMetrics* = object
   physicalCores*: int        # Physical CPU cores
   logicalCores*: int         # Logical cores (including hyperthreading)
   architecture*: string      # CPU architecture (e.g., "arm64", "x86_64")
@@ -39,6 +52,8 @@ type CpuInfo* = object
   brand*: string           # Full CPU brand string
   frequency*: CpuFrequency  # Detailed frequency information
   usage*: CpuUsage         # Current CPU usage statistics
+  loadAverage*: LoadAverage # Current load average information
+  timestamp*: int64        # Timestamp in nanoseconds
 ```
 
 ### 🔍 Field Details
@@ -50,6 +65,8 @@ type CpuInfo* = object
 - `brand`: Full CPU brand string (e.g., "Apple M2 Pro")
 - `frequency`: CPU frequency information
 - `usage`: Current CPU usage statistics with user, system, idle, and nice percentages
+- `loadAverage`: Current system load averages
+- `timestamp`: When these metrics were collected (nanoseconds since Unix epoch)
 
 ## ⚡ CPU Frequency
 
@@ -85,9 +102,10 @@ The `LoadAverage` object provides system load information:
 
 ```nim
 type LoadAverage* = object
-  oneMinute*: float
-  fiveMinutes*: float
-  fifteenMinutes*: float
+  oneMinute*: float        # 1-minute load average
+  fiveMinute*: float       # 5-minute load average
+  fifteenMinute*: float    # 15-minute load average
+  timestamp*: Time         # When this measurement was taken
 ```
 
 ### 📊 Historical Load Tracking
@@ -95,21 +113,49 @@ type LoadAverage* = object
 The `LoadHistory` type maintains a chronological record of load averages:
 
 ```nim
-let history = newLoadHistory(maxSamples = 60)  # Keep last 60 samples
-history.add(loadAvg)
+# Create a history tracker with default 60 samples
+let history = newLoadHistory(maxSamples = DefaultMaxSamples)
+
+# Start tracking load averages every minute
+asyncCheck startLoadTracking(history)
+
+# Or manually add samples
+let load = await getLoadAverage()
+history.add(load)
 ```
 
-## 🧮 Per-Core CPU Metrics
+## 🧮 CPU Usage Tracking
+
+The module provides comprehensive CPU usage tracking:
+
+```nim
+# Get current CPU usage
+let usage = await getCpuUsage()
+echo "Total CPU usage: ", usage.total, "%"
+echo "User: ", usage.user, "%"
+echo "System: ", usage.system, "%"
+echo "Idle: ", usage.idle, "%"
+
+# Track CPU usage history
+let usageHistory = newCpuUsageHistory(maxSamples = DefaultCpuSamples)
+asyncCheck startCpuUsageTracking(usageHistory)
+```
+
+## 🔢 Per-Core CPU Metrics
 
 The `getPerCoreCpuLoadInfo()` function provides detailed CPU usage statistics for each individual core:
 
 ```nim
-let coreStats = getPerCoreCpuLoadInfo()
+let coreStats = await getPerCoreCpuLoadInfo()
 echo "Number of cores reporting: ", coreStats.len
 
 # Access individual core data
 for i, core in coreStats:
   echo "Core ", i, " user: ", core.userTicks[0], " system: ", core.systemTicks[0]
+
+# Track per-core history
+let coreHistory = newPerCoreHistory()
+asyncCheck startPerCoreTracking(coreHistory)
 ```
 
 This function properly manages memory allocated by the Mach kernel, ensuring no leaks occur when retrieving per-core metrics.
@@ -118,10 +164,10 @@ This function properly manages memory allocated by the Mach kernel, ensuring no 
 
 The CPU module provides thread-safe operations:
 
-- `LoadHistory` uses locks for safe concurrent access
-- `add()` can be called from multiple threads
+- All history types (`LoadHistory`, `CpuUsageHistory`, `PerCoreHistory`) use locks for safe concurrent access
+- `add()` methods can be called from multiple threads
 - All Mach kernel bindings are properly managed for memory safety
-- Asynchronous operations like `getLoadAverageAsync()` are thread-safe
+- Asynchronous operations are thread-safe
 - Per-core statistics collection is thread-safe
 
 ## ⚠️ Error Handling
@@ -139,25 +185,38 @@ The module implements graceful fallbacks and clear error handling:
 ### 🔍 Basic CPU Information
 
 ```nim
-let info = getCpuInfo()
-echo "CPU: ", info.brand
-echo "Cores: ", info.physicalCores, " physical, ", info.logicalCores, " logical"
-echo "Architecture: ", info.architecture
+proc main() {.async.} =
+  let metrics = await getCpuMetrics()
+  echo "CPU: ", metrics.brand
+  echo "Cores: ", metrics.physicalCores, " physical, ", metrics.logicalCores, " logical"
+  echo "Architecture: ", metrics.architecture
+  echo "Load averages: ", metrics.loadAverage
+
+waitFor main()
 ```
 
-### 📊 Monitoring Load Averages
+### 📊 Continuous Monitoring
 
 ```nim
-let load = getLoadAverageAsync().await
-echo "Load averages: ", load.oneMinute, " ", load.fiveMinutes, " ", load.fifteenMinutes
-```
+proc main() {.async.} =
+  # Setup history trackers
+  let loadHistory = newLoadHistory()
+  let usageHistory = newCpuUsageHistory()
+  let coreHistory = newPerCoreHistory()
 
-### 📈 Tracking Load History
+  # Start tracking with different intervals
+  asyncCheck startLoadTracking(loadHistory)
+  asyncCheck startCpuUsageTracking(usageHistory)
+  asyncCheck startPerCoreTracking(coreHistory)
 
-```nim
-let history = newLoadHistory()
-history.add(getLoadAverageAsync().await)
-echo "Recent load history: ", history
+  # Your monitoring logic here
+  while true:
+    await sleepAsync(seconds(1))
+    echo "Load samples: ", loadHistory.len
+    echo "Usage samples: ", usageHistory.len
+    echo "Core samples: ", coreHistory.len
+
+waitFor main()
 ```
 
 ## 🔧 Platform Support
@@ -167,10 +226,11 @@ echo "Recent load history: ", history
 - **Architecture**: Native support for arm64 and x86_64
 - **Privileges**: User-mode operation (no root required)
 - **Memory Safety**: Automatic resource management
+- **Async Support**: Built on Chronos for efficient async operations
 
 ## 🔗 See Also
 
 - [💾 Memory Metrics](./memory.html)
-- [📊 System Metrics Overview](./metrics.html)
+- [🔋 Power Metrics](./power.html)
 - [⚙️ Configuration Options](./configuration.html)
 - [📚 API Reference](./api.html)

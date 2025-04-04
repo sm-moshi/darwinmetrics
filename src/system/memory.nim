@@ -10,10 +10,10 @@
 ## import darwinmetrics/system/memory
 ##
 ## # Get system memory statistics
-## let stats = getMemoryStats()
-## echo "Total physical memory: ", stats.totalPhysical
-## echo "Available physical memory: ", stats.availablePhysical
-## echo "Used physical memory: ", stats.usedPhysical
+## let metrics = getMemoryMetrics()
+## echo "Total physical memory: ", metrics.totalPhysical
+## echo "Available physical memory: ", metrics.availablePhysical
+## echo "Used physical memory: ", metrics.usedPhysical
 ##
 ## # Get current process memory info
 ## let procInfo = getProcessMemoryInfo()
@@ -21,22 +21,24 @@
 ## echo "Process virtual size: ", procInfo.virtualSize
 ## ```
 
+import std/times
 import ../internal/[mach_memory, memory_types]
 export memory_types.KB, memory_types.MB, memory_types.GB, memory_types.TB
 
 type
-  MemoryStats* = object
+  MemoryMetrics* = object
     ## System-wide memory statistics
     totalPhysical*: uint64     ## Total physical memory in bytes
     availablePhysical*: uint64 ## Available physical memory in bytes
     usedPhysical*: uint64      ## Used physical memory in bytes
-    pressureLevel*: MemoryPressureLevel  ## Current memory pressure level
+    pressureLevel*: MemoryPressure  ## Current memory pressure level
     pageSize*: uint32          ## System page size in bytes
     pagesFree*: uint64        ## Number of free pages
     pagesActive*: uint64      ## Number of active pages in use
     pagesInactive*: uint64    ## Number of inactive pages that can be reclaimed
     pagesWired*: uint64       ## Number of wired (locked) pages
     pagesCompressed*: uint64  ## Number of compressed pages
+    timestamp*: int64         ## When these metrics were collected (nanoseconds)
 
   ProcessMemoryInfo* = object
     ## Process-specific memory information
@@ -51,38 +53,44 @@ type
     Critical   ## Critical level - system under significant memory pressure
     Error      ## Error state - unable to determine memory pressure
 
-proc getMemoryStats*(): MemoryStats {.raises: [ref MemoryError].} =
+proc getMemoryMetrics*(): MemoryMetrics {.raises: [ref MemoryError].} =
   ## Returns system-wide memory statistics.
   ##
   ## This procedure retrieves the current memory usage statistics from the system,
   ## including total, used, and available physical memory.
   ##
   ## Returns:
-  ##   A `MemoryStats` object containing various memory metrics
+  ##   A `MemoryMetrics` object containing various memory metrics
   ##
   ## Raises:
   ##   MemoryError: If a memory-related operation fails
   ##
   ## Example:
   ##   ```nim
-  ##   let stats = getMemoryStats()
-  ##   echo "Total memory: ", stats.totalPhysical div GB, " GB"
-  ##   echo "Available memory: ", stats.availablePhysical div MB, " MB"
+  ##   let metrics = getMemoryMetrics()
+  ##   echo "Total memory: ", metrics.totalPhysical div GB, " GB"
+  ##   echo "Available memory: ", metrics.availablePhysical div MB, " MB"
   ##   ```
   let internalStats = mach_memory.getMemoryStats()
   let pageSize = mach_memory.getSystemPageSize()
 
-  result = MemoryStats(
+  let pressureLevel = case internalStats.pressureLevel
+    of memory_types.mplNormal: MemoryPressure.Normal
+    of memory_types.mplWarning: MemoryPressure.Warning
+    of memory_types.mplCritical: MemoryPressure.Critical
+
+  result = MemoryMetrics(
     totalPhysical: internalStats.totalPhysical,
     availablePhysical: internalStats.availablePhysical,
     usedPhysical: internalStats.usedPhysical,
-    pressureLevel: internalStats.pressureLevel,
+    pressureLevel: pressureLevel,
     pageSize: uint32(pageSize),
     pagesFree: internalStats.pagesFree,
     pagesActive: internalStats.pagesActive,
     pagesInactive: internalStats.pagesInactive,
     pagesWired: internalStats.pagesWired,
-    pagesCompressed: internalStats.pagesCompressed
+    pagesCompressed: internalStats.pagesCompressed,
+    timestamp: getTime().toUnix * 1_000_000_000
   )
 
 proc getProcessMemoryInfo*(): ProcessMemoryInfo {.raises: [ref MemoryError].} =
