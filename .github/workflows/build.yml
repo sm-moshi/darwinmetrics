@@ -64,7 +64,7 @@ jobs:
 
       - name: Create Release
         if: matrix.is-release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: |
             dist/darwinmetrics-${{ github.ref_name }}.tar.gz
